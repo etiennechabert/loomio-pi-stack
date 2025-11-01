@@ -1,0 +1,262 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: loomio-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-loomio_production}
+      POSTGRES_USER: ${POSTGRES_USER:-loomio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./backups/db:/backups
+    networks:
+      - loomio-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-loomio}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for background jobs
+  redis:
+    image: redis:7-alpine
+    container_name: loomio-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - loomio-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Loomio App
+  app:
+    image: loomio/loomio:stable
+    container_name: loomio-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-loomio}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-loomio_production}
+      REDIS_URL: redis://redis:6379
+      RAILS_ENV: production
+      RACK_ENV: production
+    volumes:
+      - app-data:/loomio/public/system
+      - app-storage:/loomio/storage
+      - app-files:/loomio/public/files
+      - app-plugins:/loomio/plugins
+      - app-import:/import
+      - app-tmp:/loomio/tmp
+      - app-logs:/loomio/log
+    ports:
+      - "${LOOMIO_PORT:-3000}:3000"
+    networks:
+      - loomio-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/v1/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Loomio Worker
+  worker:
+    image: loomio/loomio:stable
+    container_name: loomio-worker
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-loomio}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-loomio_production}
+      REDIS_URL: redis://redis:6379
+      RAILS_ENV: production
+      RACK_ENV: production
+      TASK: worker
+    command: bundle exec sidekiq
+    volumes:
+      - app-data:/loomio/public/system
+      - app-storage:/loomio/storage
+      - app-files:/loomio/public/files
+      - app-plugins:/loomio/plugins
+      - app-import:/import
+      - app-tmp:/loomio/tmp
+      - app-logs:/loomio/log
+    networks:
+      - loomio-network
+
+  # Loomio Channels (realtime notifications)
+  channels:
+    image: loomio/loomio_channel_server:latest
+    container_name: loomio-channels
+    restart: unless-stopped
+    depends_on:
+      - redis
+    environment:
+      REDIS_URL: redis://redis:6379
+    ports:
+      - "${CHANNELS_PORT:-5000}:5000"
+    networks:
+      - loomio-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Hocuspocus (collaborative editing)
+  hocuspocus:
+    image: loomio/loomio-hocuspocus:latest
+    container_name: loomio-hocuspocus
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-loomio}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-loomio_production}
+      LOOMIO_HMAC_KEY: ${LOOMIO_HMAC_KEY}
+      PORT: 4000
+    ports:
+      - "${HOCUSPOCUS_PORT:-4000}:4000"
+    networks:
+      - loomio-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Automated Backup Service
+  backup:
+    build: ./backup-service
+    container_name: loomio-backup
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-loomio_production}
+      DB_USER: ${POSTGRES_USER:-loomio}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY}
+      BACKUP_SCHEDULE: ${BACKUP_SCHEDULE:-0 * * * *}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+      GDRIVE_ENABLED: ${GDRIVE_ENABLED:-false}
+      GDRIVE_CREDENTIALS: ${GDRIVE_CREDENTIALS}
+      GDRIVE_FOLDER_ID: ${GDRIVE_FOLDER_ID}
+    volumes:
+      - ./backups:/backups
+      - db-data:/db-data:ro
+    networks:
+      - loomio-network
+
+  # Database Administration Interface
+  adminer:
+    image: adminer:latest
+    container_name: loomio-adminer
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+      ADMINER_DESIGN: nette
+    ports:
+      - "${ADMINER_PORT:-8081}:8080"
+    networks:
+      - loomio-network
+
+  # System Monitoring
+  netdata:
+    image: netdata/netdata:latest
+    container_name: loomio-netdata
+    restart: unless-stopped
+    hostname: loomio-monitor
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - apparmor:unconfined
+    environment:
+      DOCKER_HOST: /var/run/docker.sock
+      NETDATA_CLAIM_TOKEN: ${NETDATA_CLAIM_TOKEN}
+      NETDATA_CLAIM_URL: https://app.netdata.cloud
+      NETDATA_CLAIM_ROOMS: ${NETDATA_CLAIM_ROOMS}
+    volumes:
+      - netdata-config:/etc/netdata
+      - netdata-lib:/var/lib/netdata
+      - netdata-cache:/var/cache/netdata
+      - /etc/passwd:/host/etc/passwd:ro
+      - /etc/group:/host/etc/group:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./monitoring/netdata:/etc/netdata/custom-config
+    ports:
+      - "${NETDATA_PORT:-19999}:19999"
+    networks:
+      - loomio-network
+
+  # Automatic Container Updates
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: loomio-watchtower
+    restart: unless-stopped
+    environment:
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_INCLUDE_RESTARTING: "true"
+      WATCHTOWER_SCHEDULE: ${WATCHTOWER_SCHEDULE:-0 15 3 * * *}
+      WATCHTOWER_NOTIFICATIONS: ${WATCHTOWER_NOTIFICATIONS:-shoutrrr}
+      WATCHTOWER_NOTIFICATION_URL: ${WATCHTOWER_NOTIFICATION_URL}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - loomio-network
+
+  # Cloudflare Tunnel (optional)
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: loomio-cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    networks:
+      - loomio-network
+    profiles:
+      - cloudflare
+
+volumes:
+  db-data:
+  redis-data:
+  app-data:
+  app-storage:
+  app-files:
+  app-plugins:
+  app-import:
+  app-tmp:
+  app-logs:
+  netdata-config:
+  netdata-lib:
+  netdata-cache:
+
+networks:
+  loomio-network:
+    driver: bridge
