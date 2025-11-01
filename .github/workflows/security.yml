@@ -1,0 +1,258 @@
+name: Security
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run daily security scans at 2 AM UTC
+    - cron: '0 2 * * *'
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  codeql:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'python' ]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: ${{ matrix.language }}
+        queries: security-extended,security-and-quality
+
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v3
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:${{matrix.language}}"
+
+  trivy-repo:
+    name: Trivy Repository Scan
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        severity: 'CRITICAL,HIGH,MEDIUM'
+        vuln-type: 'os,library'
+
+    - name: Upload Trivy results to GitHub Security
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: 'trivy-results.sarif'
+      if: always()
+
+  trivy-docker:
+    name: Trivy Docker Image Scan
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        image:
+          - postgres:15-alpine
+          - redis:7-alpine
+          - netdata/netdata:latest
+          - adminer:latest
+          - loomio/loomio:stable
+          - loomio/loomio_channel_server:latest
+          - loomio/loomio-hocuspocus:latest
+
+    steps:
+    - name: Run Trivy on Docker image
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'image'
+        image-ref: ${{ matrix.image }}
+        format: 'sarif'
+        output: 'trivy-${{ matrix.image }}.sarif'
+        severity: 'CRITICAL,HIGH'
+      continue-on-error: true
+
+    - name: Upload Trivy results
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: 'trivy-${{ matrix.image }}.sarif'
+      if: always()
+      continue-on-error: true
+
+  secret-scan:
+    name: Secret Detection
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: TruffleHog Secret Scan
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
+        base: ${{ github.event.repository.default_branch }}
+        head: HEAD
+        extra_args: --debug --only-verified
+
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Dependency Review
+      uses: actions/dependency-review-action@v4
+      with:
+        fail-on-severity: high
+        deny-licenses: GPL-3.0, AGPL-3.0
+
+  docker-scout:
+    name: Docker Scout CVE Scan
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build backup service image
+      run: docker build -t backup-service:test ./backup-service
+
+    - name: Docker Scout scan
+      uses: docker/scout-action@v1
+      with:
+        command: cves
+        image: backup-service:test
+        only-severities: critical,high
+        exit-code: false
+      continue-on-error: true
+
+  security-hardening:
+    name: Security Hardening Checks
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Check for hardcoded secrets patterns
+      run: |
+        echo "Scanning for hardcoded secrets..."
+
+        # Check for common secret patterns
+        if git grep -E "(password|passwd|pwd|secret|token|api_key|apikey|access_key|private_key)\s*[:=]\s*['\"][^'\"]{8,}['\"]" -- \
+          ':!.env.example' ':!*.md' ':!.github/workflows/*' ':!SMTP_SETUP.md' ':!FEATURES.md' ':!BACKUP_GUIDE.md'; then
+          echo "❌ Potential hardcoded secrets found!"
+          exit 1
+        fi
+
+        echo "✅ No hardcoded secrets detected"
+
+    - name: Check sensitive file permissions
+      run: |
+        echo "Checking for overly permissive files..."
+
+        # Check .env.example doesn't have real values
+        if grep -E "POSTGRES_PASSWORD=(?!change-this-secure-password)" .env.example; then
+          echo "❌ Real password in .env.example"
+          exit 1
+        fi
+
+        echo "✅ No sensitive permissions issues"
+
+    - name: Verify security-critical files
+      run: |
+        echo "Verifying security configuration..."
+
+        # Check .gitignore includes sensitive patterns
+        test -f .gitignore || { echo "❌ .gitignore missing"; exit 1; }
+        grep -q "^\.env$" .gitignore || { echo "❌ .env not in .gitignore"; exit 1; }
+        grep -q "^backups/$" .gitignore || { echo "❌ backups/ not in .gitignore"; exit 1; }
+
+        # Check for accidental commits
+        if [ -f .env ]; then
+          echo "❌ .env file committed!"
+          exit 1
+        fi
+
+        if [ -d backups ] && [ "$(ls -A backups 2>/dev/null)" ]; then
+          echo "❌ backups/ directory with files committed!"
+          exit 1
+        fi
+
+        echo "✅ Security configuration verified"
+
+    - name: Check Docker security best practices
+      run: |
+        echo "Checking Docker configurations..."
+
+        # Check docker-compose.yml for security issues
+        if grep -q "privileged: true" docker-compose.yml; then
+          echo "⚠️  Warning: Privileged containers found"
+        fi
+
+        if grep -q "network_mode: host" docker-compose.yml; then
+          echo "⚠️  Warning: Host network mode found"
+        fi
+
+        # Check for exposed credentials in compose file
+        if grep -E "(PASSWORD|SECRET|TOKEN|KEY).*=" docker-compose.yml | grep -v "\${"; then
+          echo "❌ Hardcoded credentials in docker-compose.yml"
+          exit 1
+        fi
+
+        echo "✅ Docker security checks passed"
+
+  osv-scanner:
+    name: OSV Vulnerability Scan
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run OSV Scanner
+      uses: google/osv-scanner-action@v1
+      with:
+        scan-args: |-
+          --recursive
+          --format sarif
+          --output osv-results.sarif
+          ./
+      continue-on-error: true
+
+    - name: Upload OSV results
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: osv-results.sarif
+      if: always()
+      continue-on-error: true
