@@ -24,7 +24,8 @@ is_running() {
 
 # Check if a container is healthy
 is_healthy() {
-    local health=$(docker inspect --format='{{.State.Health.Status}}' "loomio-$1" 2>/dev/null || echo "none")
+    local health
+    health=$(docker inspect --format='{{.State.Health.Status}}' "loomio-$1" 2>/dev/null || echo "none")
     [ "$health" = "healthy" ] || [ "$health" = "none" ]
 }
 
