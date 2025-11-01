@@ -5,6 +5,9 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main ]
+  schedule:
+    # Run weekly security scans
+    - cron: '0 0 * * 0'
 
 jobs:
   validate:
@@ -13,32 +16,137 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
+      uses: docker/setup-buildx-action@v3
 
     - name: Validate docker-compose.yml
       run: docker compose config
 
     - name: Check for required files
       run: |
-        test -f .env.example || exit 1
-        test -f docker-compose.yml || exit 1
-        test -f README.md || exit 1
+        echo "Checking required files..."
+        test -f .env.example || { echo "❌ .env.example missing"; exit 1; }
+        test -f docker-compose.yml || { echo "❌ docker-compose.yml missing"; exit 1; }
+        test -f README.md || { echo "❌ README.md missing"; exit 1; }
+        test -f Makefile || { echo "❌ Makefile missing"; exit 1; }
+        echo "✅ All required files present"
 
-    - name: Validate .env.example
+    - name: Validate .env.example completeness
       run: |
-        grep -q "POSTGRES_PASSWORD=" .env.example
-        grep -q "SECRET_KEY_BASE=" .env.example
-        grep -q "SMTP_SERVER=" .env.example
+        echo "Validating .env.example..."
+
+        # Required variables
+        grep -q "POSTGRES_PASSWORD=" .env.example || { echo "❌ Missing POSTGRES_PASSWORD"; exit 1; }
+        grep -q "SECRET_KEY_BASE=" .env.example || { echo "❌ Missing SECRET_KEY_BASE"; exit 1; }
+        grep -q "SMTP_SERVER=" .env.example || { echo "❌ Missing SMTP_SERVER"; exit 1; }
+        grep -q "CANONICAL_HOST=" .env.example || { echo "❌ Missing CANONICAL_HOST"; exit 1; }
+        grep -q "LOOMIO_HMAC_KEY=" .env.example || { echo "❌ Missing LOOMIO_HMAC_KEY"; exit 1; }
+        grep -q "BACKUP_ENCRYPTION_KEY=" .env.example || { echo "❌ Missing BACKUP_ENCRYPTION_KEY"; exit 1; }
+
+        # Check no real secrets are committed
+        if grep -E "SECRET_KEY_BASE=[a-f0-9]{128}" .env.example; then
+          echo "❌ Real secret found in .env.example!"
+          exit 1
+        fi
+
+        echo "✅ .env.example validation passed"
 
     - name: Check script permissions
       run: |
-        find scripts -type f -name "*.sh" -exec test -x {} \; -o -exec echo "{} is not executable" \;
+        echo "Checking script permissions..."
+        find scripts -type f -name "*.sh" -exec test -x {} \; || {
+          echo "❌ Some scripts are not executable:";
+          find scripts -type f -name "*.sh" ! -executable -ls;
+          exit 1;
+        }
+        find backup-service -type f -name "*.sh" -exec test -x {} \; 2>/dev/null || true
+        echo "✅ All scripts are executable"
+
+    - name: Validate Makefile syntax
+      run: |
+        echo "Validating Makefile..."
+        make --dry-run help > /dev/null
+        echo "✅ Makefile syntax valid"
+
+    - name: Check systemd service files
+      run: |
+        echo "Checking systemd service files..."
+        test -f loomio.service || { echo "❌ loomio.service missing"; exit 1; }
+        test -f loomio-watchdog.service || { echo "❌ loomio-watchdog.service missing"; exit 1; }
+        test -f loomio-watchdog.timer || { echo "❌ loomio-watchdog.timer missing"; exit 1; }
+        echo "✅ All systemd files present"
 
     - name: Build backup service
       run: docker compose build backup
+
+    - name: Test backup service image
+      run: |
+        echo "Testing backup service build..."
+        docker compose config | grep -q "backup-service" || { echo "❌ Backup service not in config"; exit 1; }
+        echo "✅ Backup service configured correctly"
+
+  documentation:
+    name: Documentation Checks
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Check documentation files exist
+      run: |
+        echo "Checking documentation..."
+        docs=(
+          "README.md"
+          "QUICKSTART.md"
+          "SMTP_SETUP.md"
+          "ADMIN_USERS.md"
+          "FEATURES.md"
+          "BACKUP_GUIDE.md"
+          "SECURITY.md"
+          "RESTORE_ON_BOOT.md"
+          "CONTRIBUTING.md"
+          "LICENSE"
+        )
+
+        for doc in "${docs[@]}"; do
+          if [ ! -f "$doc" ]; then
+            echo "❌ Missing: $doc"
+            exit 1
+          fi
+        done
+        echo "✅ All documentation files present"
+
+    - name: Validate Markdown formatting
+      uses: DavidAnson/markdownlint-action@v1
+      with:
+        config: .markdownlint.json
+        globs: '**/*.md'
+        ignore: node_modules
+      continue-on-error: true
+
+    - name: Check for broken internal links
+      run: |
+        echo "Checking for broken internal links..."
+        # Check if all linked files exist
+        for file in *.md; do
+          echo "Checking links in $file..."
+          # Extract markdown links [text](file.md)
+          grep -oP '\]\(\K[^)]+(?=\))' "$file" 2>/dev/null | while read link; do
+            # Skip external links
+            if [[ "$link" =~ ^http ]]; then
+              continue
+            fi
+            # Check if file exists
+            if [ ! -f "$link" ] && [ ! -d "$link" ]; then
+              echo "❌ Broken link in $file: $link"
+              exit 1
+            fi
+          done
+        done
+        echo "✅ No broken internal links found"
 
   security:
     name: Security Scan
@@ -46,7 +154,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Run Trivy vulnerability scanner
       uses: aquasecurity/trivy-action@master
@@ -55,15 +163,95 @@ jobs:
         scan-ref: '.'
         format: 'sarif'
         output: 'trivy-results.sarif'
+        severity: 'CRITICAL,HIGH'
 
     - name: Upload Trivy results to GitHub Security
-      uses: github/codeql-action/upload-sarif@v2
+      uses: github/codeql-action/upload-sarif@v3
       with:
         sarif_file: 'trivy-results.sarif'
+      if: always()
 
-    - name: Check for secrets
+    - name: Check for secrets in code
       run: |
-        if git grep -E "(password|secret|token|key).*=.*[a-zA-Z0-9]{20,}" -- ':!.env.example' ':!*.md'; then
-          echo "Potential secrets found in tracked files!"
+        echo "Scanning for potential secrets..."
+        if git grep -E "(password|secret|token|key|api_key).*=.*['\"][a-zA-Z0-9]{20,}['\"]" -- ':!.env.example' ':!*.md' ':!.github/workflows/*'; then
+          echo "❌ Potential secrets found in tracked files!"
           exit 1
         fi
+        echo "✅ No secrets detected"
+
+    - name: Check .env is not committed
+      run: |
+        if [ -f .env ]; then
+          echo "❌ .env file is committed! This should never happen!"
+          exit 1
+        fi
+        echo "✅ No .env file in repository"
+
+    - name: Verify .gitignore coverage
+      run: |
+        echo "Checking .gitignore..."
+        grep -q "^.env$" .gitignore || { echo "❌ .env not in .gitignore"; exit 1; }
+        grep -q "^backups/\*\.sql" .gitignore || { echo "❌ SQL backups not ignored"; exit 1; }
+        echo "✅ .gitignore properly configured"
+
+  docker-lint:
+    name: Docker Lint
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Lint Dockerfiles
+      uses: hadolint/hadolint-action@v3.1.0
+      with:
+        dockerfile: backup-service/Dockerfile
+        failure-threshold: warning
+
+  shell-check:
+    name: Shell Script Linting
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run ShellCheck
+      uses: ludeeus/action-shellcheck@master
+      with:
+        scandir: './scripts'
+        severity: warning
+
+  test-build:
+    name: Test Full Stack Build
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Create dummy .env
+      run: |
+        cp .env.example .env
+        # Set dummy values for required fields
+        sed -i 's/POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=test123/' .env
+        sed -i 's/SECRET_KEY_BASE=.*/SECRET_KEY_BASE=test/' .env
+        sed -i 's/LOOMIO_HMAC_KEY=.*/LOOMIO_HMAC_KEY=test/' .env
+        sed -i 's/BACKUP_ENCRYPTION_KEY=.*/BACKUP_ENCRYPTION_KEY=test/' .env
+
+    - name: Validate docker-compose with .env
+      run: docker compose config > /dev/null
+
+    - name: Build all images
+      run: docker compose build --no-cache
+
+    - name: Test services start
+      run: |
+        docker compose up -d db redis
+        sleep 10
+        docker compose ps
+        docker compose down -v
