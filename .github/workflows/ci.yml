@@ -144,8 +144,8 @@ jobs:
           echo "Checking links in $file..."
           # Extract markdown links [text](file.md)
           grep -oP '\]\(\K[^)]+(?=\))' "$file" 2>/dev/null | while read link; do
-            # Skip external links
-            if [[ "$link" =~ ^http ]]; then
+            # Skip external links and anchor links
+            if [[ "$link" =~ ^http ]] || [[ "$link" =~ ^# ]]; then
               continue
             fi
             # Check if file exists
