@@ -124,7 +124,7 @@ services:
 
   # Hocuspocus (collaborative editing)
   hocuspocus:
-    image: loomio/loomio-hocuspocus:latest
+    image: loomio/loomio_channel_server:latest
     container_name: loomio-hocuspocus
     restart: unless-stopped
     depends_on:
@@ -134,6 +134,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-loomio}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-loomio_production}
       LOOMIO_HMAC_KEY: ${LOOMIO_HMAC_KEY}
       PORT: 4000
+    command: npm run hocuspocus
     ports:
       - "${HOCUSPOCUS_PORT:-4000}:4000"
     networks:
