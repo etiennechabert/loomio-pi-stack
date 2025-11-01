@@ -122,6 +122,7 @@ For detailed setup instructions, see [QUICKSTART.md](QUICKSTART.md)
 - **[QUICKSTART.md](QUICKSTART.md)** - Detailed setup guide (30 minutes)
 - **[SMTP_SETUP.md](SMTP_SETUP.md)** - Email configuration guide (Gmail, SendGrid, etc.)
 - **[ADMIN_USERS.md](ADMIN_USERS.md)** - Admin user creation and management
+- **[FEATURES.md](FEATURES.md)** - Languages, translation, SSO, themes, and feature flags
 - **[BACKUP_GUIDE.md](BACKUP_GUIDE.md)** - Backup and restore procedures
 - **[SECURITY.md](SECURITY.md)** - Security best practices
 - **[RESTORE_ON_BOOT.md](RESTORE_ON_BOOT.md)** - Stateless Pi operation
