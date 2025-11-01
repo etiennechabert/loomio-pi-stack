@@ -1,5 +1,12 @@
 # Loomio Pi Stack
 
+[![CI](https://github.com/etiennechabert/loomio-pi-stack/actions/workflows/ci.yml/badge.svg)](https://github.com/etiennechabert/loomio-pi-stack/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![Raspberry Pi](https://img.shields.io/badge/Raspberry%20Pi-Compatible-C51A4A?logo=raspberry-pi&logoColor=white)](https://www.raspberrypi.org/)
+[![Loomio](https://img.shields.io/badge/Loomio-Stable-4CAF50?logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgZmlsbD0id2hpdGUiLz48L3N2Zz4=)](https://www.loomio.com/)
+[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/etiennechabert/loomio-pi-stack/graphs/commit-activity)
+
 A comprehensive, production-ready Docker stack for self-hosting [Loomio](https://www.loomio.com/) on Raspberry Pi or any Linux server. Built with security, automation, and ease of use in mind.
 
 ## What is Loomio?
