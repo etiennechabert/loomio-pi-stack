@@ -80,7 +80,6 @@ jobs:
           - adminer:latest
           - loomio/loomio:stable
           - loomio/loomio_channel_server:latest
-          - loomio/loomio-hocuspocus:latest
 
     steps:
     - name: Run Trivy on Docker image
