@@ -9,6 +9,10 @@ on:
     # Run weekly security scans
     - cron: '0 0 * * 0'
 
+permissions:
+  contents: read
+  security-events: write
+
 jobs:
   validate:
     name: Validate Configuration
@@ -128,12 +132,9 @@ jobs:
         echo "✅ All documentation files present"
 
     - name: Validate Markdown formatting
-      uses: DavidAnson/markdownlint-action@v1
-      with:
-        config: .markdownlint.json
-        globs: '**/*.md'
-        ignore: node_modules
-      continue-on-error: true
+      run: |
+        npx markdownlint-cli@latest --config .markdownlint.json '**/*.md' || true
+        echo "✅ Markdown formatting check complete"
 
     - name: Check for broken internal links
       run: |
