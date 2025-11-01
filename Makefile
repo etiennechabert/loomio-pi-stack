@@ -86,6 +86,7 @@ generate-secrets: ## Generate new secrets (dangerous - will break existing insta
 		echo "DEVISE_SECRET=$$(openssl rand -hex 32)"; \
 		echo "BACKUP_ENCRYPTION_KEY=$$(openssl rand -hex 32)"; \
 		echo "POSTGRES_PASSWORD=$$(openssl rand -base64 32)"; \
+		echo "LOOMIO_ADMIN_PASSWORD=$$(openssl rand -base64 24)"; \
 		echo ""; \
 		echo "$(YELLOW)Copy these values to your .env file$(NC)"; \
 	else \
