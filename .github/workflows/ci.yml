@@ -192,7 +192,7 @@ jobs:
       run: |
         echo "Checking .gitignore..."
         grep -q "^.env$" .gitignore || { echo "❌ .env not in .gitignore"; exit 1; }
-        grep -q "^backups/\*\.sql" .gitignore || { echo "❌ SQL backups not ignored"; exit 1; }
+        grep -q "^backups/$" .gitignore || { echo "❌ backups/ directory not ignored"; exit 1; }
         echo "✅ .gitignore properly configured"
 
   docker-lint:
