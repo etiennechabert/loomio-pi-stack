@@ -122,6 +122,7 @@ check-config: ## Validate configuration files
 
 init: check-env ## Initialize database (first time only)
 	@echo "$(BLUE)Building services...$(NC)"
+	@mkdir -p backups
 	docker compose build backup
 	@echo "$(BLUE)Pulling images...$(NC)"
 	docker compose pull
@@ -218,6 +219,7 @@ logs-db: ## Show logs from database
 
 backup: check-env ## Create manual backup now
 	@echo "$(BLUE)Creating backup...$(NC)"
+	@mkdir -p backups
 	@docker compose exec backup python3 /app/backup.py
 	@echo "$(GREEN)✓ Backup complete!$(NC)"
 	@echo ""

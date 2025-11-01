@@ -3,10 +3,8 @@
 .env.local
 .env.*.local
 
-# Backup files
-backups/*.sql
-backups/*.sql.enc
-backups/*.tar.gz
+# Backup files - entire directory excluded
+backups/
 
 # Docker volumes
 *.tar
