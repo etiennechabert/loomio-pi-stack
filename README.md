@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/etiennechabert/loomio-pi-stack/actions/workflows/ci.yml/badge.svg)](https://github.com/etiennechabert/loomio-pi-stack/actions/workflows/ci.yml)
 [![Security](https://github.com/etiennechabert/loomio-pi-stack/actions/workflows/security.yml/badge.svg)](https://github.com/etiennechabert/loomio-pi-stack/actions/workflows/security.yml)
+[![Dependabot](https://img.shields.io/badge/Dependabot-enabled-025E8C?logo=dependabot&logoColor=white)](https://github.com/etiennechabert/loomio-pi-stack/network/updates)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 [![Raspberry Pi](https://img.shields.io/badge/Raspberry%20Pi-Compatible-C51A4A?logo=raspberry-pi&logoColor=white)](https://www.raspberrypi.org/)
