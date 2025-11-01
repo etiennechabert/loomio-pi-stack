@@ -21,8 +21,16 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
+    - name: Create dummy .env for validation
+      run: |
+        cp .env.example .env
+        sed -i 's/SECRET_KEY_BASE=.*/SECRET_KEY_BASE=test123/' .env
+        sed -i 's/POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=test123/' .env
+        sed -i 's/LOOMIO_HMAC_KEY=.*/LOOMIO_HMAC_KEY=test123/' .env
+        sed -i 's/BACKUP_ENCRYPTION_KEY=.*/BACKUP_ENCRYPTION_KEY=test123/' .env
+
     - name: Validate docker-compose.yml
-      run: docker compose config
+      run: docker compose config > /dev/null
 
     - name: Check for required files
       run: |
