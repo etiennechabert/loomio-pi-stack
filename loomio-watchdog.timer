@@ -1,0 +1,13 @@
+[Unit]
+Description=Loomio Health Check Timer
+Requires=loomio.service
+After=loomio.service
+
+[Timer]
+# Run every 5 minutes
+OnBootSec=5min
+OnUnitActiveSec=5min
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

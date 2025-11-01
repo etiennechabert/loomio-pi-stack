@@ -1,0 +1,61 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Backup files
+backups/*.sql
+backups/*.sql.enc
+backups/*.tar.gz
+
+# Docker volumes
+*.tar
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# System files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# Credentials and secrets
+*credentials*.json
+*secret*.json
+*.pem
+*.key
+!*.key.example
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# CI/CD
+.github/workflows/*.log

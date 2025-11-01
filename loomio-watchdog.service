@@ -1,0 +1,15 @@
+[Unit]
+Description=Loomio Health Monitoring Service
+After=loomio.service
+Requires=loomio.service
+
+[Service]
+Type=oneshot
+ExecStart=/home/pi/loomio-pi-stack/scripts/watchdog/health-monitor.sh
+StandardOutput=journal
+StandardError=journal
+User=pi
+Group=pi
+
+[Install]
+WantedBy=multi-user.target
