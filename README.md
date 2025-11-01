@@ -88,46 +88,28 @@ For detailed setup instructions, see [QUICKSTART.md](QUICKSTART.md)
 
 ```mermaid
 graph TB
-    subgraph "External Access"
-        User[👤 Users]
-        Internet[🌐 Internet]
-    end
-
-    subgraph "Optional Ingress"
-        CF[☁️ Cloudflare Tunnel<br/>Port-free access]
-        Nginx[🔒 Nginx Reverse Proxy<br/>SSL/TLS]
-    end
-
-    subgraph "Loomio Core Services"
-        App[🎯 Loomio App<br/>Port 3000<br/>Main Application]
-        Worker[⚙️ Loomio Worker<br/>Background Jobs]
-        Channels[📡 Channels<br/>Port 5000<br/>Real-time Notifications]
-        Hocus[✏️ Hocuspocus<br/>Port 4000<br/>Collaborative Editing]
-    end
-
-    subgraph "Data Layer"
-        DB[(🗄️ PostgreSQL 15<br/>Production Database)]
-        Redis[(💾 Redis<br/>Jobs & Cache)]
-    end
-
-    subgraph "Support Services"
-        Backup[💾 Backup Service<br/>Hourly Encrypted Backups]
-        Netdata[📊 Netdata<br/>Port 19999<br/>System Monitoring]
-        Adminer[🔧 Adminer<br/>Port 8081<br/>Database Admin]
-        Watchtower[🔄 Watchtower<br/>Auto-updates]
-    end
-
-    subgraph "External Storage"
-        GDrive[☁️ Google Drive<br/>Off-site Backups]
-        S3[📦 S3/Storage<br/>File Uploads]
-    end
-
-    User -->|HTTPS| Internet
-    Internet -->|Optional| CF
-    Internet -->|Optional| Nginx
+    Users[👤 Users] -->|HTTPS| CF[☁️ Cloudflare Tunnel]
     CF --> App
-    Nginx --> App
-    Internet -->|Direct| App
+
+    subgraph "Loomio Pi Stack"
+        subgraph "Core Services"
+            App[🎯 Loomio App<br/>Port 3000]
+            Worker[⚙️ Worker<br/>Background Jobs]
+            Channels[📡 Channels<br/>Port 5000]
+            Hocus[✏️ Hocuspocus<br/>Port 4000]
+        end
+
+        subgraph "Data"
+            DB[(🗄️ PostgreSQL)]
+            Redis[(💾 Redis)]
+        end
+
+        subgraph "Support"
+            Backup[💾 Backup<br/>Hourly]
+            Netdata[📊 Monitoring<br/>Port 19999]
+            Adminer[🔧 DB Admin<br/>Port 8081]
+        end
+    end
 
     App --> DB
     App --> Redis
@@ -136,38 +118,15 @@ graph TB
     Channels --> Redis
     Hocus --> DB
 
-    App -.->|Optional| S3
-
     Backup --> DB
-    Backup -.->|Optional| GDrive
-
-    Netdata -.->|Monitors| App
-    Netdata -.->|Monitors| DB
-    Netdata -.->|Monitors| Worker
-
-    Watchtower -.->|Updates| App
-    Watchtower -.->|Updates| Worker
-    Watchtower -.->|Updates| Channels
+    Backup -.->|Optional| GDrive[☁️ Google Drive]
 
     Adminer --> DB
 
     style App fill:#4CAF50,stroke:#2E7D32,stroke-width:3px,color:#fff
-    style DB fill:#1976D2,stroke:#0D47A1,stroke-width:3px,color:#fff
+    style DB fill:#1976D2,stroke:#0D47A1,stroke-width:2px,color:#fff
     style Redis fill:#DC382D,stroke:#A61C00,stroke-width:2px,color:#fff
-    style Backup fill:#FF9800,stroke:#E65100,stroke-width:2px,color:#fff
-    style Netdata fill:#00BCD4,stroke:#006064,stroke-width:2px,color:#fff
-    style User fill:#9C27B0,stroke:#4A148C,stroke-width:2px,color:#fff
 ```
-
-### Service Ports
-
-| Service | Port | Purpose |
-|---------|------|---------|
-| Loomio App | 3000 | Main web interface |
-| Channels | 5000 | Real-time notifications |
-| Hocuspocus | 4000 | Collaborative editing |
-| Netdata | 19999 | Monitoring dashboard |
-| Adminer | 8081 | Database management |
 
 ## Documentation
 
