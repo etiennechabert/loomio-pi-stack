@@ -138,8 +138,9 @@ init: check-env ## Initialize database (first time only)
 	@echo "$(GREEN)Ready to start! Run: make start$(NC)"
 
 auto-create-admin: check-env ## Auto-create admin user from environment variables
-	@if [ -n "$$LOOMIO_ADMIN_EMAIL" ] && [ -n "$$LOOMIO_ADMIN_PASSWORD" ]; then \
-		echo "$(BLUE)Creating admin user from environment variables...$(NC)"; \
+	@set -a; source .env; set +a; \
+	if [ -n "$$LOOMIO_ADMIN_EMAIL" ] && [ -n "$$LOOMIO_ADMIN_PASSWORD" ]; then \
+		echo "$(BLUE)Creating admin user from .env variables...$(NC)"; \
 		ADMIN_NAME="$${LOOMIO_ADMIN_NAME:-Admin User}"; \
 		docker compose run --rm app rails runner " \
 			begin \
@@ -488,7 +489,46 @@ version: ## Show versions of all components
 
 ##@ Quick Start Workflows
 
-first-time-setup: install setup init start enable-autostart auto-create-admin ## Complete first-time setup (all steps)
+first-time-setup: ## Complete first-time setup (all steps)
+	@echo "$(BLUE)╔════════════════════════════════════════════════╗$(NC)"
+	@echo "$(BLUE)║   Loomio Pi Stack - First Time Setup          ║$(NC)"
+	@echo "$(BLUE)╚════════════════════════════════════════════════╝$(NC)"
+	@echo ""
+	@echo "$(BLUE)Step 1/6: Installing dependencies...$(NC)"
+	@$(MAKE) install
+	@echo ""
+	@echo "$(BLUE)Step 2/6: Creating .env and generating secrets...$(NC)"
+	@$(MAKE) setup
+	@echo ""
+	@echo "$(YELLOW)╔════════════════════════════════════════════════╗$(NC)"
+	@echo "$(YELLOW)║   IMPORTANT: Configure your .env file         ║$(NC)"
+	@echo "$(YELLOW)╚════════════════════════════════════════════════╝$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Required configuration:$(NC)"
+	@echo "  • CANONICAL_HOST - Your domain (e.g., loomio.example.com)"
+	@echo "  • SUPPORT_EMAIL - Support email address"
+	@echo "  • SMTP_SERVER, SMTP_USERNAME, SMTP_PASSWORD - Email settings"
+	@echo ""
+	@echo "$(YELLOW)Optional (for auto admin creation):$(NC)"
+	@echo "  • LOOMIO_ADMIN_EMAIL - Admin email"
+	@echo "  • LOOMIO_ADMIN_PASSWORD - Admin password"
+	@echo "  • LOOMIO_ADMIN_NAME - Admin name"
+	@echo ""
+	@echo "$(BLUE)Edit with: nano .env$(NC)"
+	@echo ""
+	@read -p "Press Enter when you're done editing .env..." dummy; \
+	echo ""
+	@echo "$(BLUE)Step 3/6: Initializing database...$(NC)"
+	@$(MAKE) init
+	@echo ""
+	@echo "$(BLUE)Step 4/6: Starting all services...$(NC)"
+	@$(MAKE) start
+	@echo ""
+	@echo "$(BLUE)Step 5/6: Enabling auto-start on boot...$(NC)"
+	@$(MAKE) enable-autostart || echo "$(YELLOW)⚠ Skipped autostart (requires sudo)$(NC)"
+	@echo ""
+	@echo "$(BLUE)Step 6/6: Creating admin user...$(NC)"
+	@$(MAKE) auto-create-admin
 	@echo ""
 	@echo "$(GREEN)╔════════════════════════════════════════════════╗$(NC)"
 	@echo "$(GREEN)║   Loomio Pi Stack Setup Complete! 🎉          ║$(NC)"
@@ -499,10 +539,11 @@ first-time-setup: install setup init start enable-autostart auto-create-admin ##
 	@echo "  Netdata:       http://$(shell hostname -I | awk '{print $$1}'):19999"
 	@echo "  Adminer:       http://$(shell hostname -I | awk '{print $$1}'):8081"
 	@echo ""
-	@if [ -n "$$LOOMIO_ADMIN_EMAIL" ]; then \
-		echo "$(GREEN)✓ Admin user created: $$LOOMIO_ADMIN_EMAIL$(NC)"; \
+	@set -a; source .env 2>/dev/null; set +a; \
+	if [ -n "$$LOOMIO_ADMIN_EMAIL" ]; then \
+		echo "$(GREEN)✓ Admin user: $$LOOMIO_ADMIN_EMAIL$(NC)"; \
 	else \
-		echo "$(YELLOW)Next steps:$(NC)"; \
+		echo "$(YELLOW)Next steps to create admin:$(NC)"; \
 		echo "  1. Open the web interface"; \
 		echo "  2. Sign up for an account"; \
 		echo "  3. Run: make make-admin"; \
