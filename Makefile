@@ -57,13 +57,20 @@ setup: ## Create .env and generate secrets
 	DEVISE_SECRET=$$(openssl rand -hex 32); \
 	BACKUP_ENCRYPTION_KEY=$$(openssl rand -hex 32); \
 	POSTGRES_PASSWORD=$$(openssl rand -base64 32); \
+	LOOMIO_ADMIN_PASSWORD=$$(openssl rand -base64 24); \
 	sed -i.bak "s/SECRET_KEY_BASE=generate-with-openssl-rand-hex-64/SECRET_KEY_BASE=$$SECRET_KEY_BASE/" .env; \
 	sed -i.bak "s/LOOMIO_HMAC_KEY=generate-with-openssl-rand-hex-32/LOOMIO_HMAC_KEY=$$LOOMIO_HMAC_KEY/" .env; \
 	sed -i.bak "s/DEVISE_SECRET=generate-with-openssl-rand-hex-32/DEVISE_SECRET=$$DEVISE_SECRET/" .env; \
 	sed -i.bak "s/BACKUP_ENCRYPTION_KEY=generate-with-openssl-rand-hex-32/BACKUP_ENCRYPTION_KEY=$$BACKUP_ENCRYPTION_KEY/" .env; \
 	sed -i.bak "s/POSTGRES_PASSWORD=change-this-secure-password/POSTGRES_PASSWORD=$$POSTGRES_PASSWORD/" .env; \
+	sed -i.bak "s/LOOMIO_ADMIN_EMAIL=/LOOMIO_ADMIN_EMAIL=admin@loomio.local/" .env; \
+	sed -i.bak "s/LOOMIO_ADMIN_PASSWORD=/LOOMIO_ADMIN_PASSWORD=$$LOOMIO_ADMIN_PASSWORD/" .env; \
 	rm .env.bak
 	@echo "$(GREEN)✓ Secrets generated!$(NC)"
+	@echo ""
+	@echo "$(GREEN)✓ Admin credentials generated:$(NC)"
+	@echo "  Email: admin@loomio.local"
+	@. .env && echo "  Password: $$LOOMIO_ADMIN_PASSWORD"
 	@echo ""
 	@echo "$(YELLOW)⚠ IMPORTANT: Edit .env and configure:$(NC)"
 	@echo "  - CANONICAL_HOST (your domain)"
@@ -104,6 +111,34 @@ init: check-env ## Initialize database (first time only)
 	@echo "$(GREEN)✓ Database initialized!$(NC)"
 	@echo ""
 	@echo "$(GREEN)Ready to start! Run: make start$(NC)"
+
+reset-db: check-env ## Reset database to empty state (DESTRUCTIVE!)
+	@echo "$(RED)⚠⚠⚠ WARNING: This will PERMANENTLY DELETE all data! ⚠⚠⚠$(NC)"
+	@echo "$(YELLOW)This operation will:$(NC)"
+	@echo "  - Drop the entire database"
+	@echo "  - Recreate an empty database"
+	@echo "  - Load the schema"
+	@echo "  - All groups, discussions, and users will be lost"
+	@echo ""
+	@read -p "Type 'yes' to confirm: " confirm; \
+	if [ "$$confirm" != "yes" ]; then \
+		echo "$(GREEN)✓ Operation cancelled$(NC)"; \
+		exit 0; \
+	fi
+	@echo ""
+	@echo "$(BLUE)Stopping app service...$(NC)"
+	@docker compose stop app worker
+	@echo "$(BLUE)Ensuring database is running...$(NC)"
+	@docker compose up -d db redis
+	@echo "Waiting for database to be ready..."
+	@sleep 10
+	@echo "$(BLUE)Resetting database...$(NC)"
+	@docker compose run --rm app rake db:drop db:create db:schema:load
+	@echo "$(GREEN)✓ Database reset complete!$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Next steps:$(NC)"
+	@echo "  1. Run 'make auto-create-admin' to create admin user"
+	@echo "  2. Or run 'make start' and create admin via web interface"
 
 ##@ Service Management
 
