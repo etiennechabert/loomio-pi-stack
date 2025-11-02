@@ -31,8 +31,9 @@ Loomio is an open-source collaborative decision-making platform that helps group
 - **Secure Access** - Cloudflare Tunnel support (no port forwarding needed)
 - **Database Admin** - Adminer web interface
 
-### Raspberry Pi Optimized
-- ARM-compatible images
+### Cross-Platform Support
+- **x86_64** - Native performance on Intel/AMD servers
+- **ARM64** - Automatic QEMU emulation on Raspberry Pi (2-5x slower but functional)
 - Low resource footprint
 - Systemd integration for auto-start
 - Stateless boot option for read-only filesystems
