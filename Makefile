@@ -197,7 +197,7 @@ restore: ## Restore database from backup
 ##@ User Management
 
 auto-create-admin: check-env ## Auto-create admin from .env variables
-	@set -a; source .env; set +a; \
+	@set -a; . .env; set +a; \
 	if [ -n "$$LOOMIO_ADMIN_EMAIL" ] && [ -n "$$LOOMIO_ADMIN_PASSWORD" ]; then \
 		echo "$(BLUE)Creating admin user from .env variables...$(NC)"; \
 		ADMIN_NAME="$${LOOMIO_ADMIN_NAME:-Admin User}"; \
@@ -406,7 +406,7 @@ first-time-setup: ## Complete first-time setup (all steps)
 	@echo "  Netdata:       http://$(shell hostname -I | awk '{print $$1}'):19999"
 	@echo "  Adminer:       http://$(shell hostname -I | awk '{print $$1}'):8081"
 	@echo ""
-	@set -a; source .env 2>/dev/null; set +a; \
+	@set -a; . .env 2>/dev/null; set +a; \
 	if [ -n "$$LOOMIO_ADMIN_EMAIL" ]; then \
 		echo "$(GREEN)✓ Admin user: $$LOOMIO_ADMIN_EMAIL$(NC)"; \
 	else \
