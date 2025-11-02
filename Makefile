@@ -112,12 +112,11 @@ init: check-env ## Initialize database (first time only)
 	@echo ""
 	@echo "$(GREEN)Ready to start! Run: make start$(NC)"
 
-reset-db: check-env ## Reset database to empty state (DESTRUCTIVE!)
+reset-db: ## Reset database to empty state (DESTRUCTIVE!)
 	@echo "$(RED)⚠⚠⚠ WARNING: This will PERMANENTLY DELETE all data! ⚠⚠⚠$(NC)"
 	@echo "$(YELLOW)This operation will:$(NC)"
-	@echo "  - Drop the entire database"
-	@echo "  - Recreate an empty database"
-	@echo "  - Load the schema"
+	@echo "  - Stop all services"
+	@echo "  - Remove database volume (all data lost)"
 	@echo "  - All groups, discussions, and users will be lost"
 	@echo ""
 	@read -p "Type 'yes' to confirm: " confirm; \
@@ -126,19 +125,16 @@ reset-db: check-env ## Reset database to empty state (DESTRUCTIVE!)
 		exit 0; \
 	fi
 	@echo ""
-	@echo "$(BLUE)Stopping app service...$(NC)"
-	@docker compose stop app worker
-	@echo "$(BLUE)Ensuring database is running...$(NC)"
-	@docker compose up -d db redis
-	@echo "Waiting for database to be ready..."
-	@sleep 10
-	@echo "$(BLUE)Resetting database...$(NC)"
-	@docker compose run --rm app rake db:drop db:create db:schema:load
+	@echo "$(BLUE)Stopping all services...$(NC)"
+	@docker compose down
+	@echo "$(BLUE)Removing database volume...$(NC)"
+	@docker volume rm $$(docker volume ls -q -f name=db-data) 2>/dev/null || echo "No db-data volume found"
 	@echo "$(GREEN)✓ Database reset complete!$(NC)"
 	@echo ""
 	@echo "$(YELLOW)Next steps:$(NC)"
-	@echo "  1. Run 'make auto-create-admin' to create admin user"
-	@echo "  2. Or run 'make start' and create admin via web interface"
+	@echo "  1. Run 'make init' to initialize fresh database"
+	@echo "  2. Run 'make start' to start services"
+	@echo "  3. Admin user will be auto-created from .env credentials"
 
 ##@ Service Management
 
