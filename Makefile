@@ -62,9 +62,9 @@ setup: ## Create .env and generate secrets
 	sed -i.bak "s/LOOMIO_HMAC_KEY=generate-with-openssl-rand-hex-32/LOOMIO_HMAC_KEY=$$LOOMIO_HMAC_KEY/" .env; \
 	sed -i.bak "s/DEVISE_SECRET=generate-with-openssl-rand-hex-32/DEVISE_SECRET=$$DEVISE_SECRET/" .env; \
 	sed -i.bak "s/BACKUP_ENCRYPTION_KEY=generate-with-openssl-rand-hex-32/BACKUP_ENCRYPTION_KEY=$$BACKUP_ENCRYPTION_KEY/" .env; \
-	sed -i.bak "s/POSTGRES_PASSWORD=change-this-secure-password/POSTGRES_PASSWORD=$$POSTGRES_PASSWORD/" .env; \
-	sed -i.bak "s/LOOMIO_ADMIN_EMAIL=/LOOMIO_ADMIN_EMAIL=admin@loomio.local/" .env; \
-	sed -i.bak "s/LOOMIO_ADMIN_PASSWORD=/LOOMIO_ADMIN_PASSWORD=$$LOOMIO_ADMIN_PASSWORD/" .env; \
+	sed -i.bak "s|POSTGRES_PASSWORD=change-this-secure-password|POSTGRES_PASSWORD=$$POSTGRES_PASSWORD|" .env; \
+	sed -i.bak "s|LOOMIO_ADMIN_EMAIL=|LOOMIO_ADMIN_EMAIL=admin@loomio.local|" .env; \
+	sed -i.bak "s|LOOMIO_ADMIN_PASSWORD=|LOOMIO_ADMIN_PASSWORD=$$LOOMIO_ADMIN_PASSWORD|" .env; \
 	rm .env.bak
 	@echo "$(GREEN)✓ Secrets generated!$(NC)"
 	@echo ""
