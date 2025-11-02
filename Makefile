@@ -31,21 +31,6 @@ install: ## Install Docker and dependencies
 		sudo usermod -aG docker $$USER; \
 		echo "$(YELLOW)⚠ Please log out and back in for Docker permissions$(NC)"; \
 	fi
-	@echo "Checking CPU architecture..."
-	@if [ "$$(uname -m)" = "aarch64" ] || [ "$$(uname -m)" = "arm64" ]; then \
-		echo "$(YELLOW)ARM64 detected - setting up AMD64 emulation...$(NC)"; \
-		if ! command -v qemu-x86_64-static >/dev/null 2>&1; then \
-			echo "Installing QEMU emulation..."; \
-			sudo apt update; \
-			sudo apt install -y qemu-user-static binfmt-support; \
-			sudo systemctl restart docker || true; \
-			echo "$(GREEN)✓ QEMU emulation installed$(NC)"; \
-		else \
-			echo "$(GREEN)✓ QEMU emulation already installed$(NC)"; \
-		fi; \
-	else \
-		echo "$(GREEN)✓ x86_64 architecture - no emulation needed$(NC)"; \
-	fi
 	@echo "Installing additional dependencies..."
 	@sudo apt update
 	@sudo apt install -y git openssl python3 python3-pip make
