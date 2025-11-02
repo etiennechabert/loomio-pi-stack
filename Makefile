@@ -65,12 +65,12 @@ setup: ## Create .env and generate secrets
 	sed -i.bak "s|POSTGRES_PASSWORD=change-this-secure-password|POSTGRES_PASSWORD=$$POSTGRES_PASSWORD|" .env; \
 	sed -i.bak "s|LOOMIO_ADMIN_EMAIL=|LOOMIO_ADMIN_EMAIL=admin@loomio.local|" .env; \
 	sed -i.bak "s|LOOMIO_ADMIN_PASSWORD=|LOOMIO_ADMIN_PASSWORD=$$LOOMIO_ADMIN_PASSWORD|" .env; \
-	rm .env.bak
-	@echo "$(GREEN)✓ Secrets generated!$(NC)"
-	@echo ""
-	@echo "$(GREEN)✓ Admin credentials generated:$(NC)"
-	@echo "  Email: admin@loomio.local"
-	@. .env && echo "  Password: $$LOOMIO_ADMIN_PASSWORD"
+	rm .env.bak; \
+	echo "$(GREEN)✓ Secrets generated!$(NC)"; \
+	echo ""; \
+	echo "$(GREEN)✓ Admin credentials generated:$(NC)"; \
+	echo "  Email: admin@loomio.local"; \
+	echo "  Password: $$LOOMIO_ADMIN_PASSWORD"
 	@echo ""
 	@echo "$(YELLOW)⚠ IMPORTANT: Edit .env and configure:$(NC)"
 	@echo "  - CANONICAL_HOST (your domain)"
