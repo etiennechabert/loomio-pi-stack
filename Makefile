@@ -1,4 +1,4 @@
-.PHONY: help install setup init start stop restart down status logs backup restore update clean enable-autostart disable-autostart check-config health first-time-setup
+.PHONY: help install setup init start stop restart down status logs backup restore update clean enable-autostart disable-autostart check-config health first-time-setup dev-setup prod-setup dev prod dev-init prod-init dev-logs prod-logs dev-status prod-status
 
 # Default target
 .DEFAULT_GOAL := help
@@ -46,8 +46,14 @@ check-env:
 setup: ## Create .env and generate secrets
 	@echo "$(BLUE)Setting up Loomio Pi Stack...$(NC)"
 	@if [ -f .env ]; then \
-		echo "$(YELLOW)⚠ .env already exists. Backup created as .env.backup$(NC)"; \
-		cp .env .env.backup; \
+		echo "$(RED)✗ .env file already exists!$(NC)"; \
+		echo ""; \
+		echo "$(YELLOW)To avoid overwriting your configuration, please:$(NC)"; \
+		echo "  1. Rename existing file:  mv .env .env.backup"; \
+		echo "  2. Or remove it:          rm .env"; \
+		echo "  3. Then run:              make setup"; \
+		echo ""; \
+		exit 1; \
 	fi
 	@cp .env.example .env
 	@echo ""
@@ -95,6 +101,280 @@ check-config: ## Validate configuration
 	else \
 		echo "$(RED)✗ .env not found$(NC)"; \
 	fi
+
+##@ Environment-Specific Setup
+
+dev-setup: ## Setup for development (localhost, Rails dev mode)
+	@echo "$(BLUE)Setting up DEVELOPMENT environment...$(NC)"
+	@if [ -f .env ]; then \
+		echo "$(RED)✗ .env file already exists!$(NC)"; \
+		echo ""; \
+		echo "$(YELLOW)To avoid overwriting your configuration, please:$(NC)"; \
+		echo "  1. Rename existing file:  mv .env .env.backup"; \
+		echo "  2. Or remove it:          rm .env"; \
+		echo "  3. Then run:              make dev-setup"; \
+		echo ""; \
+		exit 1; \
+	fi
+	@cp .env.development .env
+	@echo "$(GREEN)✓ Development environment configured!$(NC)"
+	@echo ""
+	@echo "$(BLUE)Configuration:$(NC)"
+	@echo "  Environment: DEVELOPMENT"
+	@echo "  URL: http://localhost:3000"
+	@echo "  Database: loomio_development"
+	@echo "  SSL: Disabled"
+	@echo "  Admin: admin@localhost / admin123"
+	@echo ""
+	@echo "$(GREEN)Next steps:$(NC)"
+	@echo "  1. Run: make dev-init"
+	@echo "  2. Run: make dev"
+
+prod-setup: ## Setup for production (secure, Rails prod mode)
+	@echo "$(BLUE)Setting up PRODUCTION environment...$(NC)"
+	@if [ -f .env ]; then \
+		echo "$(RED)✗ .env file already exists!$(NC)"; \
+		echo ""; \
+		echo "$(YELLOW)To avoid overwriting your configuration, please:$(NC)"; \
+		echo "  1. Rename existing file:  mv .env .env.backup"; \
+		echo "  2. Or remove it:          rm .env"; \
+		echo "  3. Then run:              make prod-setup"; \
+		echo ""; \
+		exit 1; \
+	fi
+	@cp .env.production .env
+	@echo ""
+	@echo "$(BLUE)Generating production secrets...$(NC)"
+	@SECRET_KEY_BASE=$$(openssl rand -hex 64); \
+	LOOMIO_HMAC_KEY=$$(openssl rand -hex 32); \
+	DEVISE_SECRET=$$(openssl rand -hex 32); \
+	BACKUP_ENCRYPTION_KEY=$$(openssl rand -hex 32); \
+	POSTGRES_PASSWORD=$$(openssl rand -base64 32); \
+	LOOMIO_ADMIN_PASSWORD=$$(openssl rand -base64 24); \
+	sed -i.bak "s/POSTGRES_PASSWORD=CHANGE_THIS_SECURE_PASSWORD/POSTGRES_PASSWORD=$$POSTGRES_PASSWORD/" .env; \
+	sed -i.bak "s/SECRET_KEY_BASE=GENERATE_WITH_OPENSSL_RAND_HEX_64/SECRET_KEY_BASE=$$SECRET_KEY_BASE/" .env; \
+	sed -i.bak "s/LOOMIO_HMAC_KEY=GENERATE_WITH_OPENSSL_RAND_HEX_32/LOOMIO_HMAC_KEY=$$LOOMIO_HMAC_KEY/" .env; \
+	sed -i.bak "s/DEVISE_SECRET=GENERATE_WITH_OPENSSL_RAND_HEX_32/DEVISE_SECRET=$$DEVISE_SECRET/" .env; \
+	sed -i.bak "s/BACKUP_ENCRYPTION_KEY=GENERATE_WITH_OPENSSL_RAND_HEX_32/BACKUP_ENCRYPTION_KEY=$$BACKUP_ENCRYPTION_KEY/" .env; \
+	sed -i.bak "s/LOOMIO_ADMIN_PASSWORD=CHANGE_THIS_SECURE_PASSWORD/LOOMIO_ADMIN_PASSWORD=$$LOOMIO_ADMIN_PASSWORD/" .env; \
+	rm .env.bak; \
+	echo "$(GREEN)✓ Secrets generated!$(NC)"; \
+	echo ""; \
+	echo "$(GREEN)✓ Admin password generated:$(NC)"; \
+	echo "  Password: $$LOOMIO_ADMIN_PASSWORD"
+	@echo ""
+	@echo "$(YELLOW)⚠ IMPORTANT: Edit .env and configure:$(NC)"
+	@echo "  - CANONICAL_HOST (your domain)"
+	@echo "  - LOOMIO_ADMIN_EMAIL (admin email)"
+	@echo "  - SUPPORT_EMAIL"
+	@echo "  - SMTP settings (email server)"
+	@echo ""
+	@echo "$(BLUE)Edit with: nano .env$(NC)"
+	@echo ""
+	@echo "$(GREEN)After editing, run: make prod-init$(NC)"
+
+##@ Development Commands
+
+dev: ## Start all services in development mode
+	@if [ ! -f .env ]; then \
+		echo "$(RED)✗ .env not found!$(NC)"; \
+		echo "$(YELLOW)Run: make dev-setup$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Starting Loomio in DEVELOPMENT mode...$(NC)"
+	@docker compose up -d
+	@echo "$(GREEN)✓ Development stack started!$(NC)"
+	@echo ""
+	@echo "$(BLUE)Access Loomio at:$(NC)"
+	@echo "  Web Interface:  http://localhost:3000"
+	@echo "  Adminer:        http://localhost:8081"
+	@echo ""
+	@echo "$(YELLOW)View logs: make dev-logs$(NC)"
+
+dev-init: ## Initialize database for development
+	@if [ ! -f .env ]; then \
+		echo "$(RED)✗ .env not found!$(NC)"; \
+		echo "$(YELLOW)Run: make dev-setup$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Initializing DEVELOPMENT database...$(NC)"
+	@mkdir -p backups
+	@docker compose pull
+	@docker compose up -d db redis
+	@echo "Waiting for database..."
+	@sleep 10
+	@docker compose run --rm app rake db:setup
+	@echo "$(GREEN)✓ Development database initialized!$(NC)"
+	@echo "$(GREEN)Ready! Run: make dev$(NC)"
+
+dev-logs: ## Show development logs
+	@docker compose logs -f
+
+dev-status: ## Show development stack status
+	@echo "$(BLUE)Development Stack Status:$(NC)"
+	@docker compose ps
+
+dev-stop: ## Stop development stack
+	@echo "$(BLUE)Stopping development stack...$(NC)"
+	@docker compose stop
+	@echo "$(GREEN)✓ Stopped$(NC)"
+
+dev-restart: ## Restart development stack
+	@echo "$(BLUE)Restarting development stack...$(NC)"
+	@docker compose restart
+	@echo "$(GREEN)✓ Restarted$(NC)"
+
+##@ Production Commands
+
+prod-preflight: ## Validate production configuration before starting
+	@echo "$(BLUE)Running production preflight checks...$(NC)"
+	@if [ ! -f .env ]; then \
+		echo "$(RED)✗ .env not found!$(NC)"; \
+		exit 1; \
+	fi
+	@set -a; . .env; set +a; \
+	ERRORS=0; \
+	\
+	echo "$(BLUE)Checking critical configuration...$(NC)"; \
+	\
+	if [ "$$RAILS_ENV" != "production" ]; then \
+		echo "$(RED)✗ RAILS_ENV must be 'production' (currently: $$RAILS_ENV)$(NC)"; \
+		ERRORS=$$((ERRORS + 1)); \
+	else \
+		echo "$(GREEN)✓ RAILS_ENV set to production$(NC)"; \
+	fi; \
+	\
+	if [ -z "$$CANONICAL_HOST" ] || echo "$$CANONICAL_HOST" | grep -qE '(localhost|example\.com|127\.0\.0\.1)'; then \
+		echo "$(RED)✗ CANONICAL_HOST must be set to your actual domain (not localhost/example.com)$(NC)"; \
+		ERRORS=$$((ERRORS + 1)); \
+	else \
+		echo "$(GREEN)✓ CANONICAL_HOST configured: $$CANONICAL_HOST$(NC)"; \
+	fi; \
+	\
+	if [ "$$FORCE_SSL" != "true" ]; then \
+		echo "$(RED)✗ FORCE_SSL must be enabled (true) for production$(NC)"; \
+		ERRORS=$$((ERRORS + 1)); \
+	else \
+		echo "$(GREEN)✓ SSL enforcement enabled$(NC)"; \
+	fi; \
+	\
+	if [ -z "$$SECRET_KEY_BASE" ] || echo "$$SECRET_KEY_BASE" | grep -qE '(GENERATE|test|dev|example)'; then \
+		echo "$(RED)✗ SECRET_KEY_BASE must be a secure random value$(NC)"; \
+		ERRORS=$$((ERRORS + 1)); \
+	else \
+		echo "$(GREEN)✓ SECRET_KEY_BASE configured$(NC)"; \
+	fi; \
+	\
+	if [ -z "$$LOOMIO_HMAC_KEY" ] || echo "$$LOOMIO_HMAC_KEY" | grep -qE '(GENERATE|test|dev|example)'; then \
+		echo "$(RED)✗ LOOMIO_HMAC_KEY must be a secure random value$(NC)"; \
+		ERRORS=$$((ERRORS + 1)); \
+	else \
+		echo "$(GREEN)✓ LOOMIO_HMAC_KEY configured$(NC)"; \
+	fi; \
+	\
+	if [ -z "$$DEVISE_SECRET" ] || echo "$$DEVISE_SECRET" | grep -qE '(GENERATE|test|dev|example)'; then \
+		echo "$(RED)✗ DEVISE_SECRET must be a secure random value$(NC)"; \
+		ERRORS=$$((ERRORS + 1)); \
+	else \
+		echo "$(GREEN)✓ DEVISE_SECRET configured$(NC)"; \
+	fi; \
+	\
+	if [ -z "$$BACKUP_ENCRYPTION_KEY" ] || echo "$$BACKUP_ENCRYPTION_KEY" | grep -qE '(GENERATE|test|dev|example)'; then \
+		echo "$(RED)✗ BACKUP_ENCRYPTION_KEY must be a secure random value$(NC)"; \
+		ERRORS=$$((ERRORS + 1)); \
+	else \
+		echo "$(GREEN)✓ Backup encryption configured$(NC)"; \
+	fi; \
+	\
+	if [ -z "$$SMTP_SERVER" ] || echo "$$SMTP_SERVER" | grep -qE '(example\.com|localhost)'; then \
+		echo "$(YELLOW)⚠ WARNING: SMTP not configured - email features will not work$(NC)"; \
+	else \
+		echo "$(GREEN)✓ SMTP server configured: $$SMTP_SERVER$(NC)"; \
+	fi; \
+	\
+	if [ -z "$$POSTGRES_PASSWORD" ] || echo "$$POSTGRES_PASSWORD" | grep -qE '(CHANGE|password|test|dev)'; then \
+		echo "$(RED)✗ POSTGRES_PASSWORD must be a secure password$(NC)"; \
+		ERRORS=$$((ERRORS + 1)); \
+	else \
+		echo "$(GREEN)✓ Database password configured$(NC)"; \
+	fi; \
+	\
+	if [ -z "$$LOOMIO_ADMIN_PASSWORD" ] || echo "$$LOOMIO_ADMIN_PASSWORD" | grep -qE '(CHANGE|admin123|password)'; then \
+		echo "$(YELLOW)⚠ WARNING: Admin password is weak or not set$(NC)"; \
+	else \
+		echo "$(GREEN)✓ Admin password configured$(NC)"; \
+	fi; \
+	\
+	if [ "$$GDRIVE_ENABLED" != "true" ]; then \
+		echo "$(RED)✗ GDRIVE_ENABLED must be 'true' for production (file backups)$(NC)"; \
+		ERRORS=$$((ERRORS + 1)); \
+	else \
+		echo "$(GREEN)✓ Google Drive sync enabled$(NC)"; \
+	fi; \
+	\
+	if [ -z "$$GDRIVE_CREDENTIALS" ] || echo "$$GDRIVE_CREDENTIALS" | grep -qE '(CHANGE|example)'; then \
+		echo "$(RED)✗ GDRIVE_CREDENTIALS must be configured (service account JSON)$(NC)"; \
+		ERRORS=$$((ERRORS + 1)); \
+	else \
+		echo "$(GREEN)✓ Google Drive credentials configured$(NC)"; \
+	fi; \
+	\
+	if [ -z "$$GDRIVE_FOLDER_ID" ]; then \
+		echo "$(RED)✗ GDRIVE_FOLDER_ID must be set (Google Drive folder for backups)$(NC)"; \
+		ERRORS=$$((ERRORS + 1)); \
+	else \
+		echo "$(GREEN)✓ Google Drive folder ID configured$(NC)"; \
+	fi; \
+	\
+	echo ""; \
+	if [ $$ERRORS -gt 0 ]; then \
+		echo "$(RED)✗ Production preflight failed with $$ERRORS critical error(s)$(NC)"; \
+		echo "$(YELLOW)Fix the errors above before starting production$(NC)"; \
+		exit 1; \
+	else \
+		echo "$(GREEN)✓ All critical checks passed$(NC)"; \
+	fi
+
+prod: prod-preflight ## Start all services in production mode
+	@echo "$(BLUE)Starting Loomio in PRODUCTION mode...$(NC)"
+	@docker compose up -d
+	@echo "$(GREEN)✓ Production stack started!$(NC)"
+	@echo ""
+	@echo "$(BLUE)Access Loomio at:$(NC)"
+	@set -a; . .env; set +a; \
+	echo "  Web Interface:  https://$$CANONICAL_HOST"
+	@echo "  Netdata:        http://$(shell hostname -I | awk '{print $$1}'):19999"
+	@echo ""
+	@echo "$(YELLOW)View logs: make prod-logs$(NC)"
+
+prod-init: prod-preflight ## Initialize database for production
+	@echo "$(BLUE)Initializing PRODUCTION database...$(NC)"
+	@mkdir -p backups
+	@docker compose build backup
+	@docker compose pull
+	@docker compose up -d db redis
+	@echo "Waiting for database..."
+	@sleep 30
+	@docker compose run --rm app rake db:setup
+	@echo "$(GREEN)✓ Production database initialized!$(NC)"
+	@echo "$(GREEN)Ready! Run: make prod$(NC)"
+
+prod-logs: ## Show production logs
+	@docker compose logs -f
+
+prod-status: ## Show production stack status
+	@echo "$(BLUE)Production Stack Status:$(NC)"
+	@docker compose ps
+
+prod-stop: ## Stop production stack
+	@echo "$(BLUE)Stopping production stack...$(NC)"
+	@docker compose stop
+	@echo "$(GREEN)✓ Stopped$(NC)"
+
+prod-restart: ## Restart production stack
+	@echo "$(BLUE)Restarting production stack...$(NC)"
+	@docker compose restart
+	@echo "$(GREEN)✓ Restarted$(NC)"
 
 init: check-env ## Initialize database (first time only)
 	@echo "$(BLUE)Building services...$(NC)"
@@ -178,13 +458,28 @@ logs: ## Show logs (Usage: make logs [SERVICE=app])
 
 ##@ Backup & Restore
 
-backup: check-env ## Create backup now
+init-gdrive: check-env ## Initialize and validate Google Drive setup
+	@echo "$(BLUE)Initializing Google Drive...$(NC)"
+	@docker compose exec app bash /scripts/init-gdrive.sh
+
+backup: check-env ## Create backup now (database + files)
 	@echo "$(BLUE)Creating backup...$(NC)"
 	@mkdir -p backups
 	@docker compose exec backup python3 /app/backup.py
-	@echo "$(GREEN)✓ Backup complete!$(NC)"
+	@echo "$(GREEN)✓ Database backup complete!$(NC)"
+	@echo ""
+	@echo "$(BLUE)Syncing files to Google Drive...$(NC)"
+	@$(MAKE) sync-files
 	@echo ""
 	@$(MAKE) list-backups
+
+sync-files: check-env ## Sync file uploads to Google Drive
+	@echo "$(BLUE)Syncing file uploads to Google Drive...$(NC)"
+	@docker compose exec backup python3 /app/sync-files-to-gdrive.py || echo "$(YELLOW)⚠ File sync skipped or failed$(NC)"
+
+restore-files: check-env ## Restore file uploads from Google Drive
+	@echo "$(BLUE)Restoring file uploads from Google Drive...$(NC)"
+	@docker compose exec app bash /scripts/restore-files-from-gdrive.sh
 
 list-backups: ## List all backups
 	@echo "$(BLUE)Available backups:$(NC)"
@@ -221,7 +516,7 @@ auto-create-admin: check-env ## Auto-create admin from .env variables
 					); \
 					puts '✓ Created admin user: ' + user.email; \
 				end \
-			rescue => e \
+			rescue StandardError => e \
 				puts '✗ Failed to create admin user: ' + e.message; \
 				exit 1; \
 			end \
@@ -231,35 +526,54 @@ auto-create-admin: check-env ## Auto-create admin from .env variables
 		echo "Create admin with: make create-admin"; \
 	fi
 
-create-admin: check-env ## Create admin user (interactive)
-	@echo "$(BLUE)Create Admin User$(NC)"
+create-admin: check-env ## Create admin user with auto-generated password
+	@echo "$(BLUE)═══════════════════════════════════════$(NC)"
+	@echo "$(BLUE)       Create Loomio Admin User        $(NC)"
+	@echo "$(BLUE)═══════════════════════════════════════$(NC)"
 	@echo ""
 	@read -p "Email address: " email; \
-	read -p "Username: " username; \
-	read -sp "Password: " password; \
-	echo ""; \
-	read -sp "Confirm password: " password2; \
-	echo ""; \
-	if [ "$$password" != "$$password2" ]; then \
-		echo "$(RED)✗ Passwords don't match!$(NC)"; \
+	read -p "Display name: " username; \
+	if [ -z "$$email" ] || [ -z "$$username" ]; then \
+		echo "$(RED)✗ Email and name are required!$(NC)"; \
 		exit 1; \
 	fi; \
-	if [ -z "$$email" ] || [ -z "$$username" ] || [ -z "$$password" ]; then \
-		echo "$(RED)✗ All fields are required!$(NC)"; \
-		exit 1; \
-	fi; \
-	echo "Creating admin user..."; \
+	PASSWORD=$$(openssl rand -base64 12 | tr -d '/+=' | head -c 16); \
+	echo ""; \
+	echo "$(BLUE)Creating admin user...$(NC)"; \
 	docker compose run --rm app rails runner " \
-		user = User.create!( \
-			email: '$$email', \
-			name: '$$username', \
-			password: '$$password', \
-			password_confirmation: '$$password', \
-			email_verified: true, \
-			is_admin: true \
-		); \
-		puts 'Admin user created: ' + user.email \
-	" && echo "$(GREEN)✓ Admin user created!$(NC)" || echo "$(RED)✗ Failed to create user$(NC)"
+		begin \
+			user = User.create!( \
+				email: '$$email', \
+				name: '$$username', \
+				password: '$$PASSWORD', \
+				password_confirmation: '$$PASSWORD', \
+				email_verified: true, \
+				is_admin: true \
+			); \
+			puts '✓ Admin user created successfully'; \
+		rescue => e \
+			puts '✗ Error: ' + e.message; \
+			exit 1; \
+		end \
+	" && { \
+		echo ""; \
+		echo "$(GREEN)═══════════════════════════════════════$(NC)"; \
+		echo "$(GREEN)  ✓ Admin User Created Successfully!  $(NC)"; \
+		echo "$(GREEN)═══════════════════════════════════════$(NC)"; \
+		echo ""; \
+		echo "$(YELLOW)Credentials:$(NC)"; \
+		echo "  Email:    $$email"; \
+		echo "  Name:     $$username"; \
+		echo "  Password: $$PASSWORD"; \
+		echo ""; \
+		echo "$(YELLOW)⚠ IMPORTANT: Save this password securely!$(NC)"; \
+		echo "$(YELLOW)   It will not be displayed again.$(NC)"; \
+		echo ""; \
+	} || { \
+		echo ""; \
+		echo "$(RED)✗ Failed to create admin user$(NC)"; \
+		exit 1; \
+	}
 
 promote-user: check-env ## Promote user to admin by email
 	@read -p "Email address to promote: " email; \
@@ -315,6 +629,10 @@ health: ## Check health of all services
 
 enable-autostart: ## Enable automatic startup on boot
 	@echo "$(BLUE)Enabling autostart...$(NC)"
+	@if grep -q "RAILS_ENV=production" .env 2>/dev/null; then \
+		echo "$(YELLOW)⚠ Production environment detected - running preflight checks...$(NC)"; \
+		$(MAKE) prod-preflight || exit 1; \
+	fi
 	@sudo cp loomio.service /etc/systemd/system/
 	@sudo cp loomio-watchdog.service /etc/systemd/system/
 	@sudo cp loomio-watchdog.timer /etc/systemd/system/
