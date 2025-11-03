@@ -34,8 +34,8 @@ echo ""
 echo "Running initial backup..."
 python3 /app/backup.py
 
-# Set up cron job for scheduled backups
-echo "${BACKUP_SCHEDULE} python3 /app/backup.py >> /proc/1/fd/1 2>&1" > /etc/cron.d/loomio-backup
+# Set up cron job for scheduled backups and sync
+echo "${BACKUP_SCHEDULE} /app/backup-and-sync.sh >> /proc/1/fd/1 2>&1" > /etc/cron.d/loomio-backup
 chmod 0644 /etc/cron.d/loomio-backup
 crontab /etc/cron.d/loomio-backup
 
