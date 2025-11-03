@@ -37,7 +37,7 @@ install: ## Install Docker and dependencies
 	@echo "$(GREEN)✓ Installation complete!$(NC)"
 
 init-env-dev: ## Setup development environment (creates .env from .env.development)
-	@echo "$(BLUE)Setting up DEVELOPMENT environment...$(NC)"
+	@echo "$(BLUE)Initializing DEVELOPMENT environment...$(NC)"
 	@if [ -f .env ]; then \
 		echo "$(RED)✗ .env file already exists!$(NC)"; \
 		echo ""; \
@@ -49,7 +49,7 @@ init-env-dev: ## Setup development environment (creates .env from .env.developme
 		exit 1; \
 	fi
 	@cp .env.development .env
-	@echo "$(GREEN)✓ Development environment configured!$(NC)"
+	@echo "$(GREEN)✓ Development environment initialized!$(NC)"
 	@echo ""
 	@echo "$(BLUE)Configuration:$(NC)"
 	@echo "  Environment: DEVELOPMENT"
@@ -63,7 +63,7 @@ init-env-dev: ## Setup development environment (creates .env from .env.developme
 	@echo "  3. Run: make add-admin  (to create your first admin user)"
 
 init-env-prod: ## Setup production environment (creates .env from .env.production with generated secrets)
-	@echo "$(BLUE)Setting up PRODUCTION environment...$(NC)"
+	@echo "$(BLUE)Initializing PRODUCTION environment...$(NC)"
 	@if [ -f .env ]; then \
 		echo "$(RED)✗ .env file already exists!$(NC)"; \
 		echo ""; \
