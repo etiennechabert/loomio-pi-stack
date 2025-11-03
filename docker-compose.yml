@@ -168,6 +168,7 @@ services:
       GDRIVE_ENABLED: ${GDRIVE_ENABLED:-false}
       GDRIVE_CREDENTIALS: ${GDRIVE_CREDENTIALS}
       GDRIVE_FOLDER_ID: ${GDRIVE_FOLDER_ID}
+      RAM_MODE: ${RAM_MODE:-false}
     volumes:
       - ./data/db_backup:/backups
       - db-data:/db-data:ro
@@ -207,6 +208,12 @@ services:
       NETDATA_CLAIM_TOKEN: ${NETDATA_CLAIM_TOKEN}
       NETDATA_CLAIM_URL: https://app.netdata.cloud
       NETDATA_CLAIM_ROOMS: ${NETDATA_CLAIM_ROOMS}
+      # Email alerts configuration
+      ALERT_EMAIL: ${ALERT_EMAIL}
+      SMTP_SERVER: ${SMTP_SERVER}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USERNAME: ${SMTP_USERNAME}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
     volumes:
       - netdata-config:/etc/netdata
       - netdata-lib:/var/lib/netdata
@@ -216,7 +223,7 @@ services:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./monitoring/netdata:/etc/netdata/custom-config
+      - ./monitoring/netdata:/etc/netdata/custom-config:ro
     ports:
       - "${NETDATA_PORT:-19999}:19999"
     networks:
