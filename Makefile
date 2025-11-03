@@ -296,36 +296,27 @@ logs: ## Show logs (Usage: make logs [SERVICE=app])
 
 ##@ Backup & Restore
 
-init-gdrive: check-env ## Initialize and validate Google Drive setup
-	@echo "$(BLUE)Initializing Google Drive...$(NC)"
-	@docker compose exec app bash /scripts/init-gdrive.sh
-
-backup: check-env ## Create backup now (database + files)
-	@echo "$(BLUE)Creating backup...$(NC)"
-	@mkdir -p backups
+db-backup: check-env ## Create encrypted database backup (./data/db_backup/)
+	@echo "$(BLUE)Creating database backup...$(NC)"
+	@mkdir -p data/db_backup
 	@docker compose exec backup python3 /app/backup.py
 	@echo "$(GREEN)✓ Database backup complete!$(NC)"
 	@echo ""
-	@echo "$(BLUE)Syncing files to Google Drive...$(NC)"
-	@$(MAKE) sync-files
-	@echo ""
 	@$(MAKE) list-backups
 
-sync-files: check-env ## Sync file uploads to Google Drive
-	@echo "$(BLUE)Syncing file uploads to Google Drive...$(NC)"
-	@docker compose exec backup python3 /app/sync-files-to-gdrive.py || echo "$(YELLOW)⚠ File sync skipped or failed$(NC)"
+sync-data: check-env ## Sync all data (DB backups + uploads) to Google Drive
+	@echo "$(BLUE)Syncing data to Google Drive...$(NC)"
+	@docker compose exec app bash /scripts/sync-data.sh
 
-restore-files: check-env ## Restore file uploads from Google Drive
-	@echo "$(BLUE)Restoring file uploads from Google Drive...$(NC)"
-	@docker compose exec app bash /scripts/restore-files-from-gdrive.sh
-
-list-backups: ## List all backups
-	@echo "$(BLUE)Available backups:$(NC)"
-	@ls -lh backups/ 2>/dev/null || echo "No backups found"
-
-restore: ## Restore database from backup
-	@echo "$(YELLOW)⚠ This will restore your database from a backup$(NC)"
+restore-db: check-env ## Download and restore latest database backup from Google Drive
 	@./scripts/restore-db.sh
+
+restore-uploads: check-env ## Download and restore all uploads from Google Drive
+	@./scripts/restore-uploads.sh
+
+list-backups: ## List all local database backups
+	@echo "$(BLUE)Database Backups:$(NC)"
+	@ls -lh data/db_backup/*.sql* 2>/dev/null || echo "No backups found"
 
 ##@ User Management
 

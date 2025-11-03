@@ -53,9 +53,9 @@ services:
       RAILS_ENV: development
       RACK_ENV: development
     volumes:
-      - app-data:/loomio/public/system
-      - app-storage:/loomio/storage
-      - app-files:/loomio/public/files
+      - ./data/uploads/system:/loomio/public/system
+      - ./data/uploads/storage:/loomio/storage
+      - ./data/uploads/files:/loomio/public/files
       - app-plugins:/loomio/plugins
       - app-import:/import
       - app-tmp:/loomio/tmp
@@ -92,9 +92,9 @@ services:
       TASK: worker
     command: bundle exec sidekiq
     volumes:
-      - app-data:/loomio/public/system
-      - app-storage:/loomio/storage
-      - app-files:/loomio/public/files
+      - ./data/uploads/system:/loomio/public/system
+      - ./data/uploads/storage:/loomio/storage
+      - ./data/uploads/files:/loomio/public/files
       - app-plugins:/loomio/plugins
       - app-import:/import
       - app-tmp:/loomio/tmp
@@ -169,11 +169,11 @@ services:
       GDRIVE_CREDENTIALS: ${GDRIVE_CREDENTIALS}
       GDRIVE_FOLDER_ID: ${GDRIVE_FOLDER_ID}
     volumes:
-      - ./backups:/backups
+      - ./data/db_backup:/backups
       - db-data:/db-data:ro
-      - app-storage:/loomio/storage:ro
-      - app-data:/loomio/public/system:ro
-      - app-files:/loomio/public/files:ro
+      - ./data/uploads/storage:/loomio/storage:ro
+      - ./data/uploads/system:/loomio/public/system:ro
+      - ./data/uploads/files:/loomio/public/files:ro
     networks:
       - loomio-network
 
@@ -254,9 +254,6 @@ services:
 volumes:
   db-data:
   redis-data:
-  app-data:
-  app-storage:
-  app-files:
   app-plugins:
   app-import:
   app-tmp:
