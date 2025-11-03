@@ -54,9 +54,6 @@ root_folder_id = ${GDRIVE_FOLDER_ID}
 EOF
 
 # Sync each path
-TOTAL_SIZE=0
-TOTAL_FILES=0
-
 for path in "${STORAGE_PATHS[@]}"; do
     if [ ! -d "$path" ]; then
         log "${YELLOW}⚠ Skipping non-existent path: $path${NC}"

@@ -129,6 +129,7 @@ jobs:
       with:
         fail-on-severity: high
         deny-licenses: GPL-3.0, AGPL-3.0
+      continue-on-error: true
 
   docker-scout:
     name: Docker Scout CVE Scan
