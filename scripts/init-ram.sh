@@ -1,7 +1,10 @@
 #!/bin/bash
 #
 # Initialize RAM-based Database
-# Restores database from local backup (or Google Drive if missing)
+# Downloads latest backup from Google Drive directly to RAM and restores
+#
+# In RAM mode, backups are stored ONLY in RAM and Google Drive (not on disk)
+# This minimizes SD card writes completely.
 #
 
 set -e
@@ -31,73 +34,114 @@ log "${BLUE}══════════════════════�
 log "${BLUE}  RAM Database Initialization${NC}"
 log "${BLUE}═══════════════════════════════════════════════════${NC}"
 
-LOCAL_BACKUP_DIR="./data/db_backup"
-mkdir -p "$LOCAL_BACKUP_DIR"
+# In RAM mode, backups are stored in tmpfs inside the backup container
+# We need to download from Google Drive into the backup container's /backups (tmpfs)
+BACKUP_CONTAINER="loomio-backup"
+TMPFS_BACKUP_DIR="/backups"
 
-# Check for local backup first
-LATEST_BACKUP=$(ls -t "$LOCAL_BACKUP_DIR"/loomio_backup_*.sql.enc 2>/dev/null | head -1)
+# Check if Google Drive is configured (MANDATORY in production/RAM mode)
+if [ "${GDRIVE_ENABLED}" != "true" ] || [ -z "${GDRIVE_CREDENTIALS}" ] || [ -z "${GDRIVE_FOLDER_ID}" ]; then
+    log "${RED}✗ ERROR: Google Drive is MANDATORY in production (RAM mode)!${NC}"
+    log "${RED}  In production, backups are stored only in RAM + Google Drive${NC}"
+    log "${RED}  Without Google Drive, there is NO persistence!${NC}"
+    log ""
+    log "${YELLOW}To fix:${NC}"
+    log "  1. Set GDRIVE_ENABLED=true in .env"
+    log "  2. Configure GDRIVE_CREDENTIALS (service account JSON)"
+    log "  3. Configure GDRIVE_FOLDER_ID"
+    log ""
+    log "${YELLOW}Or switch to development mode:${NC}"
+    log "  1. Set RAILS_ENV=development in .env"
+    log "  2. Restart: make down && make start"
+    exit 1
+fi
 
-if [ -z "$LATEST_BACKUP" ]; then
-    log "${YELLOW}⚠ No local backup found${NC}"
+log "${BLUE}Downloading latest backup from Google Drive to RAM...${NC}"
 
-    # Try to download from Google Drive
-    if [ "${GDRIVE_ENABLED}" = "true" ] && [ -n "${GDRIVE_CREDENTIALS}" ] && [ -n "${GDRIVE_FOLDER_ID}" ]; then
-        log "${BLUE}Downloading latest backup from Google Drive...${NC}"
+# Download latest backup from Google Drive directly into backup container's tmpfs
+docker compose exec -T backup bash -c "
+    set -e
 
-        RCLONE_CONFIG_DIR="/tmp/rclone-config-$$"
-        mkdir -p "$RCLONE_CONFIG_DIR"
+    # Create rclone config
+    RCLONE_CONFIG_DIR=\"/tmp/rclone-config-\$\$\"
+    mkdir -p \"\$RCLONE_CONFIG_DIR\"
 
-        cat > "$RCLONE_CONFIG_DIR/rclone.conf" << EOF
+    cat > \"\$RCLONE_CONFIG_DIR/rclone.conf\" << 'RCLONE_EOF'
 [gdrive]
 type = drive
 scope = drive
 service_account_credentials = ${GDRIVE_CREDENTIALS}
 root_folder_id = ${GDRIVE_FOLDER_ID}
-EOF
+RCLONE_EOF
 
-        # Download latest backup
-        rclone copy "gdrive:Backup/db_backup" "$LOCAL_BACKUP_DIR" \
-            --config "$RCLONE_CONFIG_DIR/rclone.conf" \
-            --max-age 7d \
-            --progress
+    # Download latest backup to tmpfs
+    echo 'Downloading from Google Drive...'
+    rclone copy 'gdrive:Backup/db_backup' '${TMPFS_BACKUP_DIR}' \
+        --config \"\$RCLONE_CONFIG_DIR/rclone.conf\" \
+        --max-age 7d \
+        --progress
 
-        rm -rf "$RCLONE_CONFIG_DIR"
+    rm -rf \"\$RCLONE_CONFIG_DIR\"
 
-        # Check again
-        LATEST_BACKUP=$(ls -t "$LOCAL_BACKUP_DIR"/loomio_backup_*.sql.enc 2>/dev/null | head -1)
-
-        if [ -z "$LATEST_BACKUP" ]; then
-            log "${RED}✗ No backup found locally or in Google Drive${NC}"
-            log "${YELLOW}Starting with fresh database...${NC}"
-            log "${YELLOW}Run 'make init' to set up a new database${NC}"
-            exit 0
-        fi
-
-        log "${GREEN}✓ Downloaded backup from Google Drive${NC}"
-    else
-        log "${YELLOW}⚠ Google Drive not configured${NC}"
-        log "${YELLOW}Starting with fresh database...${NC}"
-        log "${YELLOW}Run 'make init' to set up a new database${NC}"
-        exit 0
+    # Check if we got a backup
+    BACKUP_COUNT=\$(ls -1 ${TMPFS_BACKUP_DIR}/loomio_backup_*.sql.enc 2>/dev/null | wc -l)
+    if [ \$BACKUP_COUNT -eq 0 ]; then
+        echo 'ERROR: No backup found in Google Drive'
+        exit 1
     fi
-else
-    log "${GREEN}✓ Found local backup: $(basename $LATEST_BACKUP)${NC}"
+
+    echo 'Download complete!'
+"
+
+if [ $? -ne 0 ]; then
+    log "${RED}✗ Failed to download backup from Google Drive${NC}"
+    log "${YELLOW}Starting with fresh database...${NC}"
+    log "${YELLOW}Run 'make init' to set up a new database${NC}"
+    exit 0
 fi
 
-# Check backup age
-BACKUP_AGE_SECONDS=$(($(date +%s) - $(stat -f %m "$LATEST_BACKUP" 2>/dev/null || stat -c %Y "$LATEST_BACKUP")))
-BACKUP_AGE_HOURS=$((BACKUP_AGE_SECONDS / 3600))
+# Get the latest backup filename from the backup container
+LATEST_BACKUP=$(docker compose exec -T backup bash -c "ls -t ${TMPFS_BACKUP_DIR}/loomio_backup_*.sql.enc 2>/dev/null | head -1" | tr -d '\r')
 
-if [ $BACKUP_AGE_HOURS -gt 24 ]; then
-    log "${YELLOW}⚠ WARNING: Backup is ${BACKUP_AGE_HOURS} hours old${NC}"
-    log "${YELLOW}Consider syncing from Google Drive if this seems wrong${NC}"
+if [ -z "$LATEST_BACKUP" ]; then
+    log "${RED}✗ No backup found in RAM after download${NC}"
+    log "${YELLOW}Starting with fresh database...${NC}"
+    exit 0
 fi
 
-# Decrypt backup
-log "${BLUE}Decrypting backup...${NC}"
-DECRYPTED_FILE="${LATEST_BACKUP%.enc}"
+log "${GREEN}✓ Downloaded backup to RAM: $(basename $LATEST_BACKUP)${NC}"
 
-python3 -c "
+# Wait for database to be ready
+log "${BLUE}Waiting for database to be ready...${NC}"
+sleep 5
+
+# Decrypt and restore backup (all happens inside backup container's tmpfs)
+log "${BLUE}Decrypting and restoring backup from RAM...${NC}"
+
+docker compose exec -T backup bash -c "
+    set -e
+
+    LATEST_BACKUP=\"\$(ls -t ${TMPFS_BACKUP_DIR}/loomio_backup_*.sql.enc 2>/dev/null | head -1)\"
+
+    if [ -z \"\$LATEST_BACKUP\" ]; then
+        echo 'ERROR: No backup found in RAM'
+        exit 1
+    fi
+
+    echo \"Using backup: \$(basename \$LATEST_BACKUP)\"
+
+    # Check backup age
+    BACKUP_AGE_SECONDS=\$(($(date +%s) - \$(stat -c %Y \"\$LATEST_BACKUP\" 2>/dev/null)))
+    BACKUP_AGE_HOURS=\$((BACKUP_AGE_SECONDS / 3600))
+
+    if [ \$BACKUP_AGE_HOURS -gt 24 ]; then
+        echo \"WARNING: Backup is \${BACKUP_AGE_HOURS} hours old\"
+    fi
+
+    # Decrypt backup in RAM
+    DECRYPTED_FILE=\"\${LATEST_BACKUP%.enc}\"
+
+    python3 -c \"
 from cryptography.fernet import Fernet
 import base64
 import hashlib
@@ -111,58 +155,52 @@ try:
     fernet_key = derive_fernet_key('${BACKUP_ENCRYPTION_KEY}')
     fernet = Fernet(fernet_key)
 
-    with open('${LATEST_BACKUP}', 'rb') as f:
+    with open('\$LATEST_BACKUP', 'rb') as f:
         encrypted_data = f.read()
 
     decrypted_data = fernet.decrypt(encrypted_data)
 
-    with open('${DECRYPTED_FILE}', 'wb') as f:
+    with open('\$DECRYPTED_FILE', 'wb') as f:
         f.write(decrypted_data)
 
     print('✓ Decrypted successfully')
 except Exception as e:
     print(f'✗ Decryption failed: {e}', file=sys.stderr)
     sys.exit(1)
+\"
+
+    if [ \$? -ne 0 ]; then
+        echo 'ERROR: Decryption failed'
+        exit 1
+    fi
+
+    # Check if database exists
+    DB_INITIALIZED=\$(PGPASSWORD='${POSTGRES_PASSWORD}' psql -h db -U '${POSTGRES_USER:-loomio}' -d postgres -tAc \"SELECT 1 FROM pg_database WHERE datname='${POSTGRES_DB:-loomio_production}'\" 2>/dev/null || echo \"\")
+
+    if [ \"\$DB_INITIALIZED\" != \"1\" ]; then
+        echo 'Creating database...'
+        PGPASSWORD='${POSTGRES_PASSWORD}' psql -h db -U '${POSTGRES_USER:-loomio}' -d postgres -c \"CREATE DATABASE ${POSTGRES_DB:-loomio_production};\" || true
+    fi
+
+    # Restore database from RAM backup
+    echo 'Restoring database...'
+    PGPASSWORD='${POSTGRES_PASSWORD}' psql -h db -U '${POSTGRES_USER:-loomio}' -d '${POSTGRES_DB:-loomio_production}' < \"\$DECRYPTED_FILE\" 2>&1 | grep -v '^NOTICE:' | grep -v '^SET\$' | head -20
+
+    # Cleanup decrypted file (keep encrypted backup in RAM for next cycle)
+    rm -f \"\$DECRYPTED_FILE\"
+
+    echo 'Restore complete!'
 "
 
 if [ $? -ne 0 ]; then
-    log "${RED}✗ Failed to decrypt backup${NC}"
-    exit 1
-fi
-
-# Wait for database to be ready
-log "${BLUE}Waiting for database to be ready...${NC}"
-sleep 5
-
-# Check if database is initialized
-DB_INITIALIZED=$(docker compose exec -T db psql -U "${POSTGRES_USER:-loomio}" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='${POSTGRES_DB:-loomio_production}'" 2>/dev/null || echo "")
-
-if [ "$DB_INITIALIZED" = "1" ]; then
-    log "${BLUE}Database exists, restoring...${NC}"
-else
-    log "${BLUE}Creating database...${NC}"
-    docker compose exec -T db psql -U "${POSTGRES_USER:-loomio}" -d postgres -c "CREATE DATABASE ${POSTGRES_DB:-loomio_production};" || true
-fi
-
-# Restore database
-log "${BLUE}Restoring database to RAM...${NC}"
-export PGPASSWORD="${POSTGRES_PASSWORD}"
-cat "$DECRYPTED_FILE" | docker compose exec -T db psql -U "${POSTGRES_USER:-loomio}" -d "${POSTGRES_DB:-loomio_production}" 2>&1 | grep -v "^NOTICE:" | grep -v "^SET$" | head -20
-
-if [ ${PIPESTATUS[1]} -eq 0 ]; then
-    log "${GREEN}✓ Database restored to RAM successfully${NC}"
-else
     log "${RED}✗ Database restore failed${NC}"
-    rm -f "$DECRYPTED_FILE"
     exit 1
 fi
 
-# Cleanup
-rm -f "$DECRYPTED_FILE"
-
 log "${GREEN}═══════════════════════════════════════════════════${NC}"
-log "${GREEN}✓ RAM database initialized${NC}"
+log "${GREEN}✓ RAM database initialized from Google Drive${NC}"
 log "${GREEN}═══════════════════════════════════════════════════${NC}"
-log "${GREEN}  Backup age: ${BACKUP_AGE_HOURS} hours${NC}"
-log "${YELLOW}  Remember: Data is in RAM and will be lost on restart${NC}"
-log "${YELLOW}  Backups run hourly (or per BACKUP_SCHEDULE)${NC}"
+log "${YELLOW}  • Database restored from Google Drive → RAM${NC}"
+log "${YELLOW}  • Backup kept in RAM for safety${NC}"
+log "${YELLOW}  • Hourly backups: RAM → Google Drive${NC}"
+log "${YELLOW}  • ZERO SD card writes!${NC}"

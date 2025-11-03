@@ -168,7 +168,7 @@ services:
       GDRIVE_ENABLED: ${GDRIVE_ENABLED:-false}
       GDRIVE_CREDENTIALS: ${GDRIVE_CREDENTIALS}
       GDRIVE_FOLDER_ID: ${GDRIVE_FOLDER_ID}
-      RAM_MODE: ${RAM_MODE:-false}
+      RAILS_ENV: ${RAILS_ENV:-development}
     volumes:
       - ./data/db_backup:/backups
       - db-data:/db-data:ro

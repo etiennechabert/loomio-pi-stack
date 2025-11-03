@@ -21,22 +21,27 @@ export DB_NAME=${DB_NAME:-loomio_production}
 export DB_USER=${DB_USER:-loomio}
 export BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-30}
 export GDRIVE_ENABLED=${GDRIVE_ENABLED:-false}
-export RAM_MODE=${RAM_MODE:-false}
+export RAILS_ENV=${RAILS_ENV:-development}
 
-# Auto-adjust backup schedule for RAM mode
-if [ "$RAM_MODE" = "true" ]; then
-    export BACKUP_SCHEDULE="0 * * * *"  # Hourly in RAM mode
-    echo "RAM Mode detected - using HOURLY backups to minimize data loss"
+# Auto-adjust backup schedule based on environment
+# Production = RAM mode = hourly backups
+if [ "$RAILS_ENV" = "production" ]; then
+    export BACKUP_SCHEDULE="0 * * * *"  # Hourly in production/RAM mode
+    export IS_RAM_MODE="true"
+    echo "Production Mode (RAM): using HOURLY backups"
 else
-    export BACKUP_SCHEDULE=${BACKUP_SCHEDULE:-"0 */6 * * *"}  # Every 6 hours by default
+    export BACKUP_SCHEDULE=${BACKUP_SCHEDULE:-"0 */6 * * *"}  # Every 6 hours in dev
+    export IS_RAM_MODE="false"
+    echo "Development Mode (Disk): using 6-hourly backups"
 fi
 
 echo "Configuration:"
+echo "  Environment: ${RAILS_ENV}"
+echo "  Storage: $([ "$IS_RAM_MODE" = "true" ] && echo "RAM (tmpfs)" || echo "Disk (volumes)")"
 echo "  Database: ${DB_USER}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
 echo "  Schedule: ${BACKUP_SCHEDULE}"
 echo "  Retention: ${BACKUP_RETENTION_DAYS} days"
 echo "  Google Drive: ${GDRIVE_ENABLED}"
-echo "  RAM Mode: ${RAM_MODE}"
 echo ""
 
 # Run initial backup

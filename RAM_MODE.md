@@ -1,8 +1,14 @@
-# RAM Mode Guide
+# Production = RAM Mode
 
 ## What is RAM Mode?
 
-RAM Mode stores your PostgreSQL database and Redis cache entirely in system RAM instead of on disk. This dramatically reduces SD card wear and improves performance on Raspberry Pi systems.
+In production (`RAILS_ENV=production`), Loomio **automatically** runs in RAM mode:
+- PostgreSQL database → RAM (tmpfs)
+- Redis cache → RAM (tmpfs)
+- Backups → RAM (tmpfs) → Google Drive
+- **ZERO SD card writes!**
+
+Development (`RAILS_ENV=development`) uses normal disk-based storage.
 
 ## Why Use RAM Mode?
 
@@ -70,69 +76,65 @@ RAM Mode stores your PostgreSQL database and Redis cache entirely in system RAM 
 - `make down` creates final backup before removing containers
 - `make restart` creates backup, restarts, and restores data
 
-## Enabling RAM Mode
+## Enabling RAM Mode (Production Setup)
 
-### Step 1: Edit .env
+RAM mode is **automatic** when using production environment:
+
+### Step 1: Use Production Environment
 
 ```bash
-# Open your .env file
+# Create production .env
+make setup-prod-env
+
+# Configure Google Drive (MANDATORY for production)
 nano .env
-
-# Uncomment this line:
-RAM_MODE=true
-
-# IMPORTANT: Set hourly backups
-BACKUP_SCHEDULE="0 * * * *"
+# Set:
+#   GDRIVE_ENABLED=true
+#   GDRIVE_CREDENTIALS=<your service account JSON>
+#   GDRIVE_FOLDER_ID=<your folder ID>
 ```
 
-### Step 2: Create Initial Backup
-
-If you have existing data, create a backup first:
+### Step 2: Start Production
 
 ```bash
+make init   # Initialize database
+make start  # Automatically uses RAM mode
+```
+
+That's it! The system automatically:
+- Detects `RAILS_ENV=production`
+- Uses `docker-compose.ram.yml` overlay
+- Downloads backup from Google Drive → RAM
+- Restores database in RAM
+- Runs hourly backups: RAM → Google Drive
+
+## Switching Between Modes
+
+### Production → Development
+
+```bash
+# Create backup first
 make db-backup
-```
 
-### Step 3: Restart with RAM Mode
-
-```bash
+# Switch to development
 make down
-make start
+make setup-dev-env  # Creates .env with RAILS_ENV=development
+make init
+make start  # Uses disk mode
 ```
 
-The system will automatically:
-- Start with tmpfs mounts
-- Restore from latest backup
-- Enable hourly backups
-
-## Disabling RAM Mode
-
-### Step 1: Create Final Backup
+### Development → Production
 
 ```bash
+# Create backup first (if you have data)
 make db-backup
-```
 
-### Step 2: Edit .env
-
-```bash
-nano .env
-
-# Comment out or remove:
-# RAM_MODE=true
-
-# Restore normal backup schedule (optional):
-BACKUP_SCHEDULE="0 */6 * * *"
-```
-
-### Step 3: Restart Normally
-
-```bash
+# Switch to production
 make down
-make start
+make setup-prod-env  # Creates .env with RAILS_ENV=production
+# Edit .env to configure Google Drive
+make start  # Uses RAM mode
 ```
-
-Data will be restored from backup to disk-based PostgreSQL.
 
 ## Monitoring
 
@@ -327,27 +329,40 @@ This prioritizes **speed** (local) over **network** (Google Drive).
 
 ## FAQ
 
+**Q: How do I enable RAM mode?**
+A: It's automatic! Use `make setup-prod-env` instead of `make setup-dev-env`. Production = RAM mode.
+
+**Q: Can I use RAM mode in development?**
+A: Not recommended. Development automatically uses disk mode for easier local testing without Google Drive.
+
 **Q: What happens if power is lost?**
-A: You lose data since the last hourly backup. On restart, the latest backup (up to 1 hour old) is automatically restored.
+A: You lose data since the last hourly backup. On restart, the latest backup (up to 1 hour old) is automatically restored from Google Drive.
+
+**Q: Is Google Drive mandatory?**
+A: YES, in production/RAM mode. Backups are stored ONLY in RAM + Google Drive (not on SD card).
 
 **Q: Can I use RAM mode with only 4GB RAM?**
 A: Not recommended. You need at least 8GB for a small database, 16GB for production.
 
 **Q: Does this affect uploads/files?**
-A: No. Only the database and Redis use RAM. Files in `./data/uploads/` remain on disk.
+A: No. Only database and backups use RAM. Files in `./data/uploads/` remain on disk.
 
 **Q: How do I know if my database fits in RAM?**
 A: Check current size: `docker compose exec db du -sh /var/lib/postgresql/data`
 If it's under 4GB and you have 16GB RAM, you're safe.
 
 **Q: What if database grows beyond RAM limit?**
-A: Writes will fail with "No space left on device". Disable RAM mode or add more RAM.
+A: Writes will fail. Either switch to development mode (disk) or add more RAM.
 
 **Q: Can I manually trigger a backup?**
 A: Yes: `make db-backup`
 
 **Q: Where are backups stored?**
-A: Locally in `./data/db_backup/`, optionally synced to Google Drive.
+A: **Production (RAM mode)**: RAM + Google Drive only (NO SD card writes)
+**Development (Disk mode)**: `./data/db_backup/` on disk + optional Google Drive
+
+**Q: How do I switch from RAM mode to disk mode?**
+A: Create backup with `make db-backup`, then `make down`, edit `.env` to set `RAILS_ENV=development`, and `make start`
 
 ## Support
 
