@@ -1,8 +1,8 @@
 # Docker Compose Override for RAM-Only Mode
 # Use with: docker compose -f docker-compose.yml -f docker-compose.ram.yml up
 #
-# WARNING: All database and Redis data will be stored in RAM only!
-# Data is lost on restart. Relies on automatic backup/restore.
+# WARNING: Everything stored in RAM - database, Redis, AND backups!
+# Data is lost on restart. Google Drive is MANDATORY for persistence.
 #
 # tmpfs without size limits defaults to 50% of system RAM (8GB on 16GB system)
 # Monitor RAM usage with: make ram-usage
@@ -15,9 +15,8 @@ services:
       # No size limit - defaults to 50% of system RAM (~8GB)
       # Monitor with: docker stats db
       - /var/lib/postgresql/data:mode=0700
-    volumes:
-      # Remove db-data volume, keep only backup mount
-      - ./data/db_backup:/backups
+    volumes: []
+      # Remove ALL disk volumes - fully in RAM
 
   # Redis in RAM (no persistence)
   redis:
@@ -28,3 +27,18 @@ services:
       # No size limit - defaults to 50% of system RAM
       - /data:mode=0755
     # Remove redis-data volume entirely
+
+  # Backup service with RAM-only backups
+  backup:
+    tmpfs:
+      # Store backups in RAM (not on SD card!)
+      # Backups are uploaded directly to Google Drive
+      # On boot: download from GDrive → RAM → restore
+      # Size: ~500MB-1GB for encrypted backup
+      - /backups:mode=0755
+    volumes:
+      # Remove ./data/db_backup volume - backups only in RAM
+      # Google Drive is the source of truth
+      - ./data/uploads/storage:/loomio/storage:ro
+      - ./data/uploads/system:/loomio/public/system:ro
+      - ./data/uploads/files:/loomio/public/files:ro

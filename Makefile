@@ -253,25 +253,24 @@ preflight-check:
 start: check-env preflight-check ## Start all services
 	@echo "$(BLUE)Starting Loomio stack...$(NC)"
 	@set -a; . .env; set +a; \
-	if [ "$$RAM_MODE" = "true" ]; then \
-		echo "$(YELLOW)RAM Mode enabled - using tmpfs for database and Redis$(NC)"; \
+	if grep -q "RAILS_ENV=production" .env 2>/dev/null; then \
+		echo "$(YELLOW)Production Mode: Using RAM mode for database and Redis$(NC)"; \
 		docker compose -f docker-compose.yml -f docker-compose.ram.yml up -d; \
-		echo "$(BLUE)Initializing RAM database from backup...$(NC)"; \
+		echo "$(BLUE)Initializing RAM database from Google Drive...$(NC)"; \
 		./scripts/init-ram.sh; \
 	else \
+		echo "$(BLUE)Development Mode: Using disk-based storage$(NC)"; \
 		docker compose up -d; \
 	fi
 	@echo "$(GREEN)✓ Loomio stack started!$(NC)"
 	@echo ""
 	@set -a; . .env; set +a; \
-	if [ "$$RAM_MODE" = "true" ]; then \
-		echo "$(YELLOW)⚠ RAM Mode Active:$(NC)"; \
-		echo "  - Database and Redis running in RAM"; \
-		echo "  - Data restored from: ./data/db_backup/"; \
+	if grep -q "RAILS_ENV=production" .env 2>/dev/null; then \
+		echo "$(YELLOW)⚠ RAM Mode Active (Production):$(NC)"; \
+		echo "  - Database and Redis in RAM"; \
+		echo "  - Backups in RAM → Google Drive"; \
 		echo "  - Monitor usage: make ram-usage"; \
 		echo ""; \
-	fi; \
-	if grep -q "RAILS_ENV=production" .env 2>/dev/null; then \
 		echo "$(BLUE)Access Loomio at:$(NC)"; \
 		echo "  Web Interface:  https://$$CANONICAL_HOST"; \
 	else \
@@ -285,8 +284,8 @@ start: check-env preflight-check ## Start all services
 
 stop: ## Stop all services
 	@set -a; . .env 2>/dev/null; set +a; \
-	if [ "$$RAM_MODE" = "true" ]; then \
-		echo "$(YELLOW)⚠ RAM Mode: Creating backup before stopping...$(NC)"; \
+	if grep -q "RAILS_ENV=production" .env 2>/dev/null; then \
+		echo "$(YELLOW)⚠ Production/RAM Mode: Creating backup before stopping...$(NC)"; \
 		$(MAKE) db-backup; \
 	fi
 	@echo "$(BLUE)Stopping Loomio stack...$(NC)"
@@ -295,12 +294,12 @@ stop: ## Stop all services
 
 restart: ## Restart all services
 	@set -a; . .env 2>/dev/null; set +a; \
-	if [ "$$RAM_MODE" = "true" ]; then \
-		echo "$(YELLOW)⚠ RAM Mode: Creating backup before restart...$(NC)"; \
+	if grep -q "RAILS_ENV=production" .env 2>/dev/null; then \
+		echo "$(YELLOW)⚠ Production/RAM Mode: Creating backup before restart...$(NC)"; \
 		$(MAKE) db-backup; \
 		echo "$(BLUE)Restarting with RAM mode...$(NC)"; \
 		docker compose -f docker-compose.yml -f docker-compose.ram.yml restart; \
-		echo "$(BLUE)Restoring database from backup...$(NC)"; \
+		echo "$(BLUE)Restoring database from Google Drive...$(NC)"; \
 		./scripts/init-ram.sh; \
 	else \
 		echo "$(BLUE)Restarting Loomio stack...$(NC)"; \
@@ -310,8 +309,8 @@ restart: ## Restart all services
 
 down: ## Stop and remove all containers
 	@set -a; . .env 2>/dev/null; set +a; \
-	if [ "$$RAM_MODE" = "true" ]; then \
-		echo "$(YELLOW)⚠ RAM Mode: All data in RAM will be LOST!$(NC)"; \
+	if grep -q "RAILS_ENV=production" .env 2>/dev/null; then \
+		echo "$(YELLOW)⚠ Production/RAM Mode: All data in RAM will be LOST!$(NC)"; \
 		echo "$(YELLOW)Creating final backup...$(NC)"; \
 		$(MAKE) db-backup || true; \
 	fi
