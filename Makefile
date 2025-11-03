@@ -252,10 +252,25 @@ preflight-check:
 
 start: check-env preflight-check ## Start all services
 	@echo "$(BLUE)Starting Loomio stack...$(NC)"
-	@docker compose up -d
+	@set -a; . .env; set +a; \
+	if [ "$$RAM_MODE" = "true" ]; then \
+		echo "$(YELLOW)RAM Mode enabled - using tmpfs for database and Redis$(NC)"; \
+		docker compose -f docker-compose.yml -f docker-compose.ram.yml up -d; \
+		echo "$(BLUE)Initializing RAM database from backup...$(NC)"; \
+		./scripts/init-ram.sh; \
+	else \
+		docker compose up -d; \
+	fi
 	@echo "$(GREEN)✓ Loomio stack started!$(NC)"
 	@echo ""
 	@set -a; . .env; set +a; \
+	if [ "$$RAM_MODE" = "true" ]; then \
+		echo "$(YELLOW)⚠ RAM Mode Active:$(NC)"; \
+		echo "  - Database and Redis running in RAM"; \
+		echo "  - Data restored from: ./data/db_backup/"; \
+		echo "  - Monitor usage: make ram-usage"; \
+		echo ""; \
+	fi; \
 	if grep -q "RAILS_ENV=production" .env 2>/dev/null; then \
 		echo "$(BLUE)Access Loomio at:$(NC)"; \
 		echo "  Web Interface:  https://$$CANONICAL_HOST"; \
@@ -269,16 +284,37 @@ start: check-env preflight-check ## Start all services
 	@echo "$(YELLOW)View logs: make logs$(NC)"
 
 stop: ## Stop all services
+	@set -a; . .env 2>/dev/null; set +a; \
+	if [ "$$RAM_MODE" = "true" ]; then \
+		echo "$(YELLOW)⚠ RAM Mode: Creating backup before stopping...$(NC)"; \
+		$(MAKE) db-backup; \
+	fi
 	@echo "$(BLUE)Stopping Loomio stack...$(NC)"
 	@docker compose stop
 	@echo "$(GREEN)✓ Services stopped$(NC)"
 
 restart: ## Restart all services
-	@echo "$(BLUE)Restarting Loomio stack...$(NC)"
-	@docker compose restart
+	@set -a; . .env 2>/dev/null; set +a; \
+	if [ "$$RAM_MODE" = "true" ]; then \
+		echo "$(YELLOW)⚠ RAM Mode: Creating backup before restart...$(NC)"; \
+		$(MAKE) db-backup; \
+		echo "$(BLUE)Restarting with RAM mode...$(NC)"; \
+		docker compose -f docker-compose.yml -f docker-compose.ram.yml restart; \
+		echo "$(BLUE)Restoring database from backup...$(NC)"; \
+		./scripts/init-ram.sh; \
+	else \
+		echo "$(BLUE)Restarting Loomio stack...$(NC)"; \
+		docker compose restart; \
+	fi
 	@echo "$(GREEN)✓ Services restarted$(NC)"
 
 down: ## Stop and remove all containers
+	@set -a; . .env 2>/dev/null; set +a; \
+	if [ "$$RAM_MODE" = "true" ]; then \
+		echo "$(YELLOW)⚠ RAM Mode: All data in RAM will be LOST!$(NC)"; \
+		echo "$(YELLOW)Creating final backup...$(NC)"; \
+		$(MAKE) db-backup || true; \
+	fi
 	@echo "$(RED)Stopping and removing all containers...$(NC)"
 	@docker compose down
 	@echo "$(GREEN)✓ Containers removed$(NC)"
@@ -293,6 +329,26 @@ logs: ## Show logs (Usage: make logs [SERVICE=app])
 	else \
 		docker compose logs -f; \
 	fi
+
+##@ Monitoring
+
+ram-usage: ## Show RAM usage for database and Redis (useful in RAM mode)
+	@echo "$(BLUE)RAM Usage (Database & Redis):$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Database:$(NC)"
+	@docker compose exec db du -sh /var/lib/postgresql/data 2>/dev/null || echo "  Database not running"
+	@echo ""
+	@echo "$(YELLOW)Redis:$(NC)"
+	@docker compose exec redis du -sh /data 2>/dev/null || echo "  Redis not running"
+	@echo ""
+	@echo "$(BLUE)System Memory:$(NC)"
+	@free -h | grep -E '(Mem|Swap)'
+
+ram-stats: ## Show live resource stats for all containers (Ctrl+C to exit)
+	@echo "$(BLUE)Live Container Stats (RAM, CPU, Network)$(NC)"
+	@echo "$(YELLOW)Press Ctrl+C to exit$(NC)"
+	@echo ""
+	@docker stats
 
 ##@ Backup & Restore
 
