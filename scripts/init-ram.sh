@@ -36,7 +36,6 @@ log "${BLUE}══════════════════════�
 
 # In RAM mode, backups are stored in tmpfs inside the backup container
 # We need to download from Google Drive into the backup container's /backups (tmpfs)
-BACKUP_CONTAINER="loomio-backup"
 TMPFS_BACKUP_DIR="/backups"
 
 # Check if Google Drive is configured (MANDATORY in production/RAM mode)
