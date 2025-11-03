@@ -1,4 +1,4 @@
-.PHONY: help install setup-dev-env setup-prod-env check-env init start stop restart down status logs backup restore update clean enable-autostart disable-autostart check-config health reset-db auto-create-admin create-admin promote-user list-users rails-console db-console init-gdrive sync-files restore-files list-backups info first-time-setup
+.PHONY: help install init-env-dev init-env-prod use-dev use-prod setup-dev-env setup-prod-env check-env init start stop restart down status logs ram-usage ram-stats backup restore update clean enable-autostart disable-autostart check-config health reset-db add-user add-admin promote-user list-users rails-console db-console db-backup sync-data restore-db restore-uploads list-backups info first-time-setup
 
 # Default target
 .DEFAULT_GOAL := help
@@ -36,45 +36,44 @@ install: ## Install Docker and dependencies
 	@sudo apt install -y git openssl python3 python3-pip make
 	@echo "$(GREEN)✓ Installation complete!$(NC)"
 
-setup-dev-env: ## Setup development environment (creates .env from .env.development)
-	@echo "$(BLUE)Setting up DEVELOPMENT environment...$(NC)"
-	@if [ -f .env ]; then \
-		echo "$(RED)✗ .env file already exists!$(NC)"; \
+init-env-dev: ## Initialize development environment (creates .env.dev)
+	@echo "$(BLUE)Initializing DEVELOPMENT environment...$(NC)"
+	@if [ -f .env.dev ] && [ ! -L .env.dev ]; then \
+		echo "$(YELLOW)⚠ .env.dev already exists$(NC)"; \
 		echo ""; \
-		echo "$(YELLOW)To avoid overwriting your configuration:$(NC)"; \
-		echo "  1. Rename existing file:  mv .env .env.backup"; \
-		echo "  2. Or remove it:          rm .env"; \
-		echo "  3. Then run:              make setup-dev-env"; \
-		echo ""; \
-		exit 1; \
+		read -p "Overwrite? (y/N): " confirm; \
+		if [ "$$confirm" != "y" ] && [ "$$confirm" != "Y" ]; then \
+			echo "$(BLUE)Keeping existing .env.dev$(NC)"; \
+			exit 0; \
+		fi; \
 	fi
-	@cp .env.development .env
-	@echo "$(GREEN)✓ Development environment configured!$(NC)"
+	@cp .env.development .env.dev
+	@echo "$(GREEN)✓ Development environment initialized: .env.dev$(NC)"
 	@echo ""
 	@echo "$(BLUE)Configuration:$(NC)"
+	@echo "  File: .env.dev"
 	@echo "  Environment: DEVELOPMENT"
 	@echo "  URL: http://localhost:3000"
 	@echo "  Database: loomio_development"
-	@echo "  SSL: Disabled"
+	@echo "  Storage: Disk (Docker volumes)"
 	@echo ""
 	@echo "$(GREEN)Next steps:$(NC)"
-	@echo "  1. Run: make init"
-	@echo "  2. Run: make start"
-	@echo "  3. Run: make add-admin  (to create your first admin user)"
+	@echo "  1. Run: make use-dev     (activate development environment)"
+	@echo "  2. Run: make init        (initialize database)"
+	@echo "  3. Run: make start       (start services)"
 
-setup-prod-env: ## Setup production environment (creates .env from .env.production with generated secrets)
-	@echo "$(BLUE)Setting up PRODUCTION environment...$(NC)"
-	@if [ -f .env ]; then \
-		echo "$(RED)✗ .env file already exists!$(NC)"; \
+init-env-prod: ## Initialize production environment (creates .env.prod with generated secrets)
+	@echo "$(BLUE)Initializing PRODUCTION environment...$(NC)"
+	@if [ -f .env.prod ] && [ ! -L .env.prod ]; then \
+		echo "$(YELLOW)⚠ .env.prod already exists$(NC)"; \
 		echo ""; \
-		echo "$(YELLOW)To avoid overwriting your configuration:$(NC)"; \
-		echo "  1. Rename existing file:  mv .env .env.backup"; \
-		echo "  2. Or remove it:          rm .env"; \
-		echo "  3. Then run:              make setup-prod-env"; \
-		echo ""; \
-		exit 1; \
+		read -p "Overwrite? (y/N): " confirm; \
+		if [ "$$confirm" != "y" ] && [ "$$confirm" != "Y" ]; then \
+			echo "$(BLUE)Keeping existing .env.prod$(NC)"; \
+			exit 0; \
+		fi; \
 	fi
-	@cp .env.production .env
+	@cp .env.production .env.prod
 	@echo ""
 	@echo "$(BLUE)Generating production secrets...$(NC)"
 	@SECRET_KEY_BASE=$$(openssl rand -hex 64); \
@@ -82,34 +81,91 @@ setup-prod-env: ## Setup production environment (creates .env from .env.producti
 	DEVISE_SECRET=$$(openssl rand -hex 32); \
 	BACKUP_ENCRYPTION_KEY=$$(openssl rand -hex 32); \
 	POSTGRES_PASSWORD=$$(openssl rand -base64 32); \
-	sed -i.bak "s/POSTGRES_PASSWORD=CHANGE_THIS_SECURE_PASSWORD/POSTGRES_PASSWORD=$$POSTGRES_PASSWORD/" .env; \
-	sed -i.bak "s/SECRET_KEY_BASE=GENERATE_WITH_OPENSSL_RAND_HEX_64/SECRET_KEY_BASE=$$SECRET_KEY_BASE/" .env; \
-	sed -i.bak "s/LOOMIO_HMAC_KEY=GENERATE_WITH_OPENSSL_RAND_HEX_32/LOOMIO_HMAC_KEY=$$LOOMIO_HMAC_KEY/" .env; \
-	sed -i.bak "s/DEVISE_SECRET=GENERATE_WITH_OPENSSL_RAND_HEX_32/DEVISE_SECRET=$$DEVISE_SECRET/" .env; \
-	sed -i.bak "s/BACKUP_ENCRYPTION_KEY=GENERATE_WITH_OPENSSL_RAND_HEX_32/BACKUP_ENCRYPTION_KEY=$$BACKUP_ENCRYPTION_KEY/" .env; \
-	rm .env.bak; \
+	sed -i.bak "s/POSTGRES_PASSWORD=CHANGE_THIS_SECURE_PASSWORD/POSTGRES_PASSWORD=$$POSTGRES_PASSWORD/" .env.prod; \
+	sed -i.bak "s/SECRET_KEY_BASE=GENERATE_WITH_OPENSSL_RAND_HEX_64/SECRET_KEY_BASE=$$SECRET_KEY_BASE/" .env.prod; \
+	sed -i.bak "s/LOOMIO_HMAC_KEY=GENERATE_WITH_OPENSSL_RAND_HEX_32/LOOMIO_HMAC_KEY=$$LOOMIO_HMAC_KEY/" .env.prod; \
+	sed -i.bak "s/DEVISE_SECRET=GENERATE_WITH_OPENSSL_RAND_HEX_32/DEVISE_SECRET=$$DEVISE_SECRET/" .env.prod; \
+	sed -i.bak "s/BACKUP_ENCRYPTION_KEY=GENERATE_WITH_OPENSSL_RAND_HEX_32/BACKUP_ENCRYPTION_KEY=$$BACKUP_ENCRYPTION_KEY/" .env.prod; \
+	rm .env.prod.bak; \
 	echo "$(GREEN)✓ Secrets generated!$(NC)"
 	@echo ""
-	@echo "$(YELLOW)⚠ IMPORTANT: Edit .env and configure:$(NC)"
+	@echo "$(YELLOW)⚠ IMPORTANT: Edit .env.prod and configure:$(NC)"
 	@echo "  - CANONICAL_HOST (your domain)"
 	@echo "  - SUPPORT_EMAIL"
 	@echo "  - SMTP settings (email server)"
-	@echo "  - GDRIVE_CREDENTIALS and GDRIVE_FOLDER_ID (for backups)"
+	@echo "  - GDRIVE_CREDENTIALS and GDRIVE_FOLDER_ID (MANDATORY for production)"
 	@echo ""
-	@echo "$(BLUE)Edit with: nano .env$(NC)"
+	@echo "$(BLUE)Edit with: nano .env.prod$(NC)"
 	@echo ""
 	@echo "$(GREEN)After editing:$(NC)"
-	@echo "  1. Run: make init"
-	@echo "  2. Run: make start"
-	@echo "  3. Run: make add-admin  (to create your first admin user)"
+	@echo "  1. Run: make use-prod    (activate production environment)"
+	@echo "  2. Run: make init        (initialize database)"
+	@echo "  3. Run: make start       (start services in RAM mode)"
+
+use-dev: ## Switch to development environment (.env → .env.dev)
+	@if [ ! -f .env.dev ]; then \
+		echo "$(RED)✗ .env.dev not found!$(NC)"; \
+		echo "$(YELLOW)Run: make init-env-dev$(NC)"; \
+		exit 1; \
+	fi
+	@rm -f .env
+	@ln -s .env.dev .env
+	@echo "$(GREEN)✓ Switched to DEVELOPMENT environment$(NC)"
+	@echo ""
+	@echo "$(BLUE)Active configuration:$(NC)"
+	@echo "  Environment: Development"
+	@echo "  Storage: Disk (Docker volumes)"
+	@echo "  Google Drive: Optional"
+	@echo ""
+	@echo "$(YELLOW)Next: make start$(NC)"
+
+use-prod: ## Switch to production environment (.env → .env.prod)
+	@if [ ! -f .env.prod ]; then \
+		echo "$(RED)✗ .env.prod not found!$(NC)"; \
+		echo "$(YELLOW)Run: make init-env-prod$(NC)"; \
+		exit 1; \
+	fi
+	@rm -f .env
+	@ln -s .env.prod .env
+	@echo "$(GREEN)✓ Switched to PRODUCTION environment$(NC)"
+	@echo ""
+	@echo "$(BLUE)Active configuration:$(NC)"
+	@echo "  Environment: Production"
+	@echo "  Storage: RAM (tmpfs)"
+	@echo "  Google Drive: MANDATORY"
+	@echo ""
+	@echo "$(YELLOW)⚠ WARNING: Ensure Google Drive is configured in .env.prod!$(NC)"
+	@echo "$(YELLOW)Next: make start$(NC)"
+
+# Backwards compatibility aliases
+setup-dev-env: init-env-dev use-dev ## [DEPRECATED] Use init-env-dev + use-dev instead
+setup-prod-env: init-env-prod use-prod ## [DEPRECATED] Use init-env-prod + use-prod instead
 
 check-env:
 	@if [ ! -f .env ]; then \
 		echo "$(RED)✗ .env file not found!$(NC)"; \
-		echo "$(YELLOW)Run either:$(NC)"; \
-		echo "  make setup-dev-env  (for development)"; \
-		echo "  make setup-prod-env (for production)"; \
+		echo ""; \
+		echo "$(YELLOW)Initialize and activate an environment:$(NC)"; \
+		echo ""; \
+		echo "$(BLUE)Development:$(NC)"; \
+		echo "  make init-env-dev   # Create .env.dev"; \
+		echo "  make use-dev        # Activate development"; \
+		echo ""; \
+		echo "$(BLUE)Production:$(NC)"; \
+		echo "  make init-env-prod  # Create .env.prod"; \
+		echo "  make use-prod       # Activate production"; \
+		echo ""; \
 		exit 1; \
+	fi
+	@if [ -L .env ]; then \
+		TARGET=$$(readlink .env); \
+		if [ "$$TARGET" = ".env.dev" ]; then \
+			echo "$(BLUE)Active environment: Development (.env → .env.dev)$(NC)"; \
+		elif [ "$$TARGET" = ".env.prod" ]; then \
+			echo "$(BLUE)Active environment: Production (.env → .env.prod)$(NC)"; \
+		else \
+			echo "$(YELLOW)⚠ .env points to unknown file: $$TARGET$(NC)"; \
+		fi; \
 	fi
 
 check-config: ## Validate configuration
