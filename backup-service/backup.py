@@ -147,10 +147,27 @@ def upload_to_gdrive(file_path):
 
         service = build('drive', 'v3', credentials=credentials)
 
-        # Upload file
+        # Find or create Backup folder
+        query = f"name='Backup' and '{GDRIVE_FOLDER_ID}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false"
+        results = service.files().list(q=query, fields='files(id, name)').execute()
+        folders = results.get('files', [])
+
+        if folders:
+            backup_folder_id = folders[0]['id']
+        else:
+            # Create Backup folder
+            folder_metadata = {
+                'name': 'Backup',
+                'mimeType': 'application/vnd.google-apps.folder',
+                'parents': [GDRIVE_FOLDER_ID]
+            }
+            folder = service.files().create(body=folder_metadata, fields='id').execute()
+            backup_folder_id = folder['id']
+
+        # Upload file to Backup folder
         file_metadata = {
             'name': file_path.name,
-            'parents': [GDRIVE_FOLDER_ID]
+            'parents': [backup_folder_id]
         }
 
         media = MediaFileUpload(str(file_path), resumable=True)
