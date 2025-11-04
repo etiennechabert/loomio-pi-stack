@@ -1,3 +1,6 @@
+# Force bash as the shell for all commands
+SHELL := /bin/bash
+
 .PHONY: help install init-env-dev init-env-prod check-env init start stop restart down status logs backup restore update clean enable-autostart disable-autostart check-config health reset-db auto-create-admin create-admin promote-user list-users rails-console db-console init-gdrive sync-files restore-files list-backups info first-time-setup
 
 # Default target
