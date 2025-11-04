@@ -2,6 +2,19 @@
 
 Your Loomio instance is configured as a **private, invite-only community**. Public user registration is disabled - only administrators can create and invite users.
 
+## 🎯 Perfect Workflow
+
+This setup implements your ideal onboarding flow:
+
+1. **Admin enters email + name** (`make add-user`)
+2. **User receives email** with password setup link (automatic)
+3. **User sets own password** on first visit (forced)
+
+✅ No manual password sharing
+✅ No temporary passwords
+✅ Secure token-based authentication
+✅ User forced to create strong password
+
 ## Configuration
 
 The following settings are enabled in your `.env` files:
@@ -22,34 +35,43 @@ FEATURES_DISABLE_PUBLIC_THREADS=true
 
 ### Step 1: Admin Creates User Account
 
-Admins have two methods to create users:
+Admins use the automated workflow that sends a password setup email:
 
 #### Method A: Makefile Command (Recommended)
 
 ```bash
 # Create regular user
 make add-user
-# Follow prompts: enter email and name
-# System generates secure password
+# Prompts for: email and name
+# System automatically sends password setup email
 
 # Create admin user
 make add-admin
-# Follow prompts: enter email and name
-# System generates secure password
+# Prompts for: email and name
+# System automatically sends password setup email
 ```
 
 **Output:**
 ```
 ✓ User Created Successfully!
+✓ Password setup email sent to: user@example.com
 
-Credentials:
-  Email:    user@example.com
-  Name:     John Doe
-  Password: aBc123XyZ456
+Next steps:
+  1. User checks email inbox
+  2. User clicks 'Set Password' link
+  3. User creates their own password
+  4. User can now log in
 
-⚠ IMPORTANT: Save this password securely!
-   It will not be displayed again.
+Note: If email not received, check SMTP configuration
 ```
+
+**What happens:**
+- Admin enters **only email + name**
+- System creates account with random unusable password
+- System sends **password reset email** automatically
+- User receives email with secure token link
+- User clicks link and **sets their own password**
+- User is **forced to create password** (can't skip)
 
 #### Method B: Rails Console (Advanced)
 
@@ -77,22 +99,30 @@ admin = User.create!(
 )
 ```
 
-### Step 2: Admin Shares Credentials
+### Step 2: User Receives Email
 
-The admin securely shares the credentials with the new user:
-- Email address
-- Temporary password
-- Login URL: `https://your-loomio-domain.com`
+The user automatically receives an email with subject: **"Reset password instructions"**
 
-**Security best practice**: Use a password manager or encrypted communication channel.
+**Email contains:**
+- Link to set password (with secure token)
+- Link expires in 6 hours (Devise default)
+- No temporary password to share
 
-### Step 3: User First Login
+**No admin action needed** - email is sent automatically!
 
-1. User navigates to the Loomio instance
-2. Clicks "Sign In"
-3. Enters provided email and password
-4. **Important**: User should immediately change password:
-   - Click profile icon → Account Settings → Change Password
+### Step 3: User Sets Password
+
+1. User clicks "Set Password" link in email
+2. Arrives at password creation page
+3. Enters new password (must meet requirements)
+4. Confirms password
+5. **Automatically logged in** after setting password
+
+**Security benefits:**
+- ✅ User creates their own secure password
+- ✅ No temporary password to share/leak
+- ✅ Token-based, expires automatically
+- ✅ User forced to set password (cannot skip)
 
 ---
 
@@ -186,27 +216,65 @@ Users see a standard login page with:
 
 ## Email Configuration
 
-For user invitations and password resets to work, SMTP must be configured.
+**⚠️ IMPORTANT: SMTP is REQUIRED for this workflow to work.**
+
+The automated email workflow sends password setup emails. Without SMTP:
+- ✅ User accounts are created
+- ❌ But emails are NOT sent
+- ❌ Users cannot set passwords
+- ❌ Manual password reset required
 
 ### Check SMTP Status
 
 ```bash
 # Check if SMTP is configured
 grep SMTP_ .env
+
+# Should see:
+# SMTP_DOMAIN=smtp.gmail.com
+# SMTP_SERVER=smtp.gmail.com
+# SMTP_PORT=587
+# SMTP_USERNAME=your-email@gmail.com
+# SMTP_PASSWORD=your-app-password
 ```
 
 ### Quick Test
 
 ```bash
-# Send test email
+# Test email sending
 docker compose run --rm app rails runner "
-  UserMailer.test_email('your-email@example.com').deliver_now
+  user = User.last
+  user.send_reset_password_instructions
+  puts 'Email sent!'
 "
 ```
 
 ### Configure SMTP
 
+**Required before using add-user/add-admin!**
+
 See [SMTP_SETUP.md](../SMTP_SETUP.md) for detailed setup instructions.
+
+### Fallback (if SMTP not configured)
+
+If SMTP is not set up yet, you can manually set passwords:
+
+```bash
+# Create user
+make add-user
+# Enter email and name
+# Email will fail but user is created
+
+# Manually set password
+docker compose run --rm app rails runner "
+  user = User.find_by(email: 'user@example.com')
+  password = 'SecurePassword123'
+  user.update(password: password, password_confirmation: password)
+  puts \"Password set to: #{password}\"
+"
+
+# Share password securely with user
+```
 
 ---
 
@@ -260,16 +328,20 @@ docker compose run --rm app rails runner "
 # 1. Create user account
 make add-user
 # Enter: newuser@company.com, New User Name
+# System automatically sends password setup email
 
-# 2. Note the generated password
-# Example output: Password: aBc123XyZ456
+# 2. User receives email
+# User clicks link and sets their own password
+# No manual password sharing needed!
 
-# 3. Share credentials securely
-# Send via password manager or encrypted channel
-
-# 4. Add to groups via web interface
+# 3. Add to groups via web interface
 # Navigate to group → Invite → newuser@company.com
 ```
+
+**Timeline:**
+- Admin: 30 seconds (enter email + name)
+- User: 2 minutes (check email, set password, login)
+- Total: 2.5 minutes from creation to active user
 
 ### Offboarding Team Member
 

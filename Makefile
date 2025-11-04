@@ -382,7 +382,7 @@ list-backups: ## List all local database backups
 
 ##@ User Management
 
-add-user: check-env ## Create a new user with auto-generated password
+add-user: check-env ## Create a new user and send password setup email
 	@echo "$(BLUE)═══════════════════════════════════════$(NC)"
 	@echo "$(BLUE)         Create Loomio User            $(NC)"
 	@echo "$(BLUE)═══════════════════════════════════════$(NC)"
@@ -397,20 +397,27 @@ add-user: check-env ## Create a new user with auto-generated password
 		echo "$(RED)✗ Invalid email format!$(NC)"; \
 		exit 1; \
 	fi; \
-	PASSWORD=$$(openssl rand -base64 18 | tr -d '/+=' | head -c 16); \
 	echo ""; \
-	echo "$(BLUE)Creating user...$(NC)"; \
+	echo "$(BLUE)Creating user and sending password setup email...$(NC)"; \
 	docker compose run --rm app rails runner " \
 		begin \
+			# Create user with random password they won't use \
 			user = User.create!( \
 				email: '$$email', \
 				name: '$$name', \
-				password: '$$PASSWORD', \
-				password_confirmation: '$$PASSWORD', \
+				password: SecureRandom.hex(32), \
+				password_confirmation: SecureRandom.hex(32), \
 				email_verified: true, \
 				is_admin: false \
 			); \
-			puts '✓ User created successfully'; \
+			# Send password reset email \
+			token = user.send_reset_password_instructions; \
+			if token \
+				puts '✓ User created successfully'; \
+				puts '✓ Password setup email sent'; \
+			else \
+				puts '⚠ User created but email failed - check SMTP configuration'; \
+			end \
 		rescue => e \
 			puts '✗ Error: ' + e.message; \
 			exit 1; \
@@ -421,13 +428,15 @@ add-user: check-env ## Create a new user with auto-generated password
 		echo "$(GREEN)   ✓ User Created Successfully!        $(NC)"; \
 		echo "$(GREEN)═══════════════════════════════════════$(NC)"; \
 		echo ""; \
-		echo "$(YELLOW)Credentials:$(NC)"; \
-		echo "  Email:    $$email"; \
-		echo "  Name:     $$name"; \
-		echo "  Password: $$PASSWORD"; \
+		echo "$(GREEN)✓ Password setup email sent to: $$email$(NC)"; \
 		echo ""; \
-		echo "$(YELLOW)⚠ IMPORTANT: Save this password securely!$(NC)"; \
-		echo "$(YELLOW)   It will not be displayed again.$(NC)"; \
+		echo "$(YELLOW)Next steps:$(NC)"; \
+		echo "  1. User checks email inbox"; \
+		echo "  2. User clicks 'Set Password' link"; \
+		echo "  3. User creates their own password"; \
+		echo "  4. User can now log in"; \
+		echo ""; \
+		echo "$(YELLOW)Note: If email not received, check SMTP configuration$(NC)"; \
 		echo ""; \
 	} || { \
 		echo ""; \
@@ -435,7 +444,7 @@ add-user: check-env ## Create a new user with auto-generated password
 		exit 1; \
 	}
 
-add-admin: check-env ## Create an admin user with auto-generated password
+add-admin: check-env ## Create an admin user and send password setup email
 	@echo "$(BLUE)═══════════════════════════════════════$(NC)"
 	@echo "$(BLUE)        Create Loomio Admin User        $(NC)"
 	@echo "$(BLUE)═══════════════════════════════════════$(NC)"
@@ -450,20 +459,27 @@ add-admin: check-env ## Create an admin user with auto-generated password
 		echo "$(RED)✗ Invalid email format!$(NC)"; \
 		exit 1; \
 	fi; \
-	PASSWORD=$$(openssl rand -base64 18 | tr -d '/+=' | head -c 16); \
 	echo ""; \
-	echo "$(BLUE)Creating admin user...$(NC)"; \
+	echo "$(BLUE)Creating admin user and sending password setup email...$(NC)"; \
 	docker compose run --rm app rails runner " \
 		begin \
+			# Create admin user with random password they won't use \
 			user = User.create!( \
 				email: '$$email', \
 				name: '$$name', \
-				password: '$$PASSWORD', \
-				password_confirmation: '$$PASSWORD', \
+				password: SecureRandom.hex(32), \
+				password_confirmation: SecureRandom.hex(32), \
 				email_verified: true, \
 				is_admin: true \
 			); \
-			puts '✓ Admin user created successfully'; \
+			# Send password reset email \
+			token = user.send_reset_password_instructions; \
+			if token \
+				puts '✓ Admin user created successfully'; \
+				puts '✓ Password setup email sent'; \
+			else \
+				puts '⚠ Admin user created but email failed - check SMTP configuration'; \
+			end \
 		rescue => e \
 			puts '✗ Error: ' + e.message; \
 			exit 1; \
@@ -474,13 +490,15 @@ add-admin: check-env ## Create an admin user with auto-generated password
 		echo "$(GREEN)  ✓ Admin User Created Successfully!  $(NC)"; \
 		echo "$(GREEN)═══════════════════════════════════════$(NC)"; \
 		echo ""; \
-		echo "$(YELLOW)Admin Credentials:$(NC)"; \
-		echo "  Email:    $$email"; \
-		echo "  Name:     $$name"; \
-		echo "  Password: $$PASSWORD"; \
+		echo "$(GREEN)✓ Password setup email sent to: $$email$(NC)"; \
 		echo ""; \
-		echo "$(YELLOW)⚠ IMPORTANT: Save this password securely!$(NC)"; \
-		echo "$(YELLOW)   It will not be displayed again.$(NC)"; \
+		echo "$(YELLOW)Next steps:$(NC)"; \
+		echo "  1. Admin checks email inbox"; \
+		echo "  2. Admin clicks 'Set Password' link"; \
+		echo "  3. Admin creates their own password"; \
+		echo "  4. Admin can now log in with admin privileges"; \
+		echo ""; \
+		echo "$(YELLOW)Note: If email not received, check SMTP configuration$(NC)"; \
 		echo ""; \
 	} || { \
 		echo ""; \
