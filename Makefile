@@ -443,7 +443,7 @@ add-admin: check-env ## Create an admin user with password reset link
 	echo "$(BLUE)Creating admin user and generating password reset link...$(NC)"; \
 	set -a; . ./.env; set +a; \
 	CANONICAL_HOST=$${CANONICAL_HOST:-localhost:3000}; \
-	reset_token=$$(docker compose run --rm app rails runner "temp_pass = SecureRandom.hex(32); user = User.create!(email: '$$email', name: '$$name', password: temp_pass, password_confirmation: temp_pass, email_verified: true, is_admin: true); raw_token, hashed_token = Devise.token_generator.generate(User, :reset_password_token); user.reset_password_token = hashed_token; user.reset_password_sent_at = Time.now; user.save!(validate: false); puts raw_token" 2>&1 | grep -v "warning" | tail -1); \
+	reset_token=$$(docker compose run --rm app rails runner "temp_pass = SecureRandom.hex(32); user = User.create!(email: '$$email', name: '$$name', password: temp_pass, password_confirmation: temp_pass, email_verified: true, is_admin: true); raw_token, hashed_token = Devise.token_generator.generate(User, :reset_password_token); user.reset_password_token = hashed_token; user.reset_password_sent_at = Time.now; user.save!(validate: false); puts raw_token" 2>&1 | grep -v -E "(warning|Container|Running)" | grep -E '^[a-zA-Z0-9_-]+$$' | tail -1); \
 	if echo "$$reset_token" | grep -qv "ERROR"; then \
 		reset_url="http://$$CANONICAL_HOST/users/password/edit?reset_password_token=$$reset_token"; \
 		echo ""; \
