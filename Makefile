@@ -425,48 +425,48 @@ add-user: check-env ## Create a new user and send password setup email
 	}
 
 add-admin: check-env ## Create an admin user with password reset link
-	@echo "$(BLUE)═══════════════════════════════════════$(NC)"
-	@echo "$(BLUE)        Create Loomio Admin User        $(NC)"
-	@echo "$(BLUE)═══════════════════════════════════════$(NC)"
-	@echo ""
+	@printf "$(BLUE)═══════════════════════════════════════$(NC)\n"
+	@printf "$(BLUE)        Create Loomio Admin User        $(NC)\n"
+	@printf "$(BLUE)═══════════════════════════════════════$(NC)\n"
+	@printf "\n"
 	@read -p "Email address: " email; \
 	read -p "Display name: " name; \
 	if [ -z "$$email" ] || [ -z "$$name" ]; then \
-		echo "$(RED)✗ Email and name are required!$(NC)"; \
+		printf "$(RED)✗ Email and name are required!$(NC)\n"; \
 		exit 1; \
 	fi; \
 	if ! echo "$$email" | grep -qE '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$$'; then \
-		echo "$(RED)✗ Invalid email format!$(NC)"; \
+		printf "$(RED)✗ Invalid email format!$(NC)\n"; \
 		exit 1; \
 	fi; \
-	echo ""; \
-	echo "$(BLUE)Creating admin user and generating password reset link...$(NC)"; \
+	printf "\n"; \
+	printf "$(BLUE)Creating admin user and generating password reset link...$(NC)\n"; \
 	set -a; . ./.env; set +a; \
 	CANONICAL_HOST=$${CANONICAL_HOST:-localhost:3000}; \
-	reset_token=$$(docker compose run --rm app rails runner "temp_pass = SecureRandom.hex(32); user = User.create!(email: '$$email', name: '$$name', password: temp_pass, password_confirmation: temp_pass, email_verified: true, is_admin: true); raw_token, hashed_token = Devise.token_generator.generate(User, :reset_password_token); user.reset_password_token = hashed_token; user.reset_password_sent_at = Time.now; user.save!(validate: false); puts raw_token" 2>&1 | grep -v -E "(warning|Container|Running)" | grep -E '^[a-zA-Z0-9_-]+$$' | tail -1); \
-	if echo "$$reset_token" | grep -qv "ERROR"; then \
-		reset_url="http://$$CANONICAL_HOST/users/password/edit?reset_password_token=$$reset_token"; \
-		echo ""; \
-		echo "$(GREEN)═══════════════════════════════════════$(NC)"; \
-		echo "$(GREEN)  ✓ Admin User Created Successfully!  $(NC)"; \
-		echo "$(GREEN)═══════════════════════════════════════$(NC)"; \
-		echo ""; \
-		echo "$(GREEN)Email: $$email$(NC)"; \
-		echo ""; \
-		echo "$(YELLOW)🔗 Password Setup Link:$(NC)"; \
-		echo "$(CYAN)$$reset_url$(NC)"; \
-		echo ""; \
-		echo "$(YELLOW)⚠️  IMPORTANT:$(NC)"; \
-		echo "$(YELLOW)   1. Open this link in your browser$(NC)"; \
-		echo "$(YELLOW)   2. Set your own secure password$(NC)"; \
-		echo "$(YELLOW)   3. Link expires in 6 hours$(NC)"; \
-		echo ""; \
-		echo "$(YELLOW)💡 This link will only be shown once!$(NC)"; \
-		echo ""; \
+	reset_token=$$(docker compose run --rm -v $$(pwd)/scripts:/scripts app rails runner /scripts/create-admin-user.rb "$$email" "$$name" 2>&1 | grep -v -E "(warning|Container|Running)" | grep -E '^[a-zA-Z0-9_-]+$$' | tail -1); \
+	if [ -n "$$reset_token" ] && echo "$$reset_token" | grep -qv "ERROR"; then \
+		reset_url="https://$$CANONICAL_HOST/users/password/edit?reset_password_token=$$reset_token"; \
+		printf "\n"; \
+		printf "$(GREEN)═══════════════════════════════════════$(NC)\n"; \
+		printf "$(GREEN)  ✓ Admin User Created Successfully!  $(NC)\n"; \
+		printf "$(GREEN)═══════════════════════════════════════$(NC)\n"; \
+		printf "\n"; \
+		printf "$(GREEN)Email: $$email$(NC)\n"; \
+		printf "\n"; \
+		printf "$(YELLOW)🔗 Password Setup Link:$(NC)\n"; \
+		printf "$(CYAN)$$reset_url$(NC)\n"; \
+		printf "\n"; \
+		printf "$(YELLOW)⚠️  IMPORTANT:$(NC)\n"; \
+		printf "$(YELLOW)   1. Open this link in your browser$(NC)\n"; \
+		printf "$(YELLOW)   2. Set your own secure password$(NC)\n"; \
+		printf "$(YELLOW)   3. Link expires in 6 hours$(NC)\n"; \
+		printf "\n"; \
+		printf "$(YELLOW)💡 This link will only be shown once!$(NC)\n"; \
+		printf "\n"; \
 	else \
-		echo ""; \
-		echo "$(RED)✗ Failed to create admin user$(NC)"; \
-		echo "$$reset_token"; \
+		printf "\n"; \
+		printf "$(RED)✗ Failed to create admin user$(NC)\n"; \
+		printf "Debug output: $$reset_token\n"; \
 		exit 1; \
 	fi
 
