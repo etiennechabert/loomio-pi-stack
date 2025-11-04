@@ -48,7 +48,7 @@ fi
 log "${YELLOW}═══════════════════════════════════════════════════${NC}"
 log "${YELLOW}⚠ WARNING: This will REPLACE your current database!${NC}"
 log "${YELLOW}═══════════════════════════════════════════════════${NC}"
-log "${YELLOW}Backup file: $(basename $DECRYPTED_FILE)${NC}"
+log "${YELLOW}Backup file: $(basename "$DECRYPTED_FILE")${NC}"
 log "${YELLOW}Database: ${POSTGRES_DB:-loomio_production}${NC}"
 echo ""
 read -p "Type 'yes' to confirm restore: " confirm

@@ -252,7 +252,7 @@ preflight-check:
 
 start: check-env preflight-check ## Start all services
 	@echo "$(BLUE)Starting Loomio stack...$(NC)"
-	@set -a; . .env; set +a; \
+	@set -a; . ./.env; set +a; \
 	if grep -q "RAILS_ENV=production" .env 2>/dev/null; then \
 		echo "$(YELLOW)Production Mode: Using RAM mode for database and Redis$(NC)"; \
 		docker compose -f docker-compose.yml -f docker-compose.ram.yml up -d; \
@@ -264,7 +264,7 @@ start: check-env preflight-check ## Start all services
 	fi
 	@echo "$(GREEN)✓ Loomio stack started!$(NC)"
 	@echo ""
-	@set -a; . .env; set +a; \
+	@set -a; . ./.env; set +a; \
 	if grep -q "RAILS_ENV=production" .env 2>/dev/null; then \
 		echo "$(YELLOW)⚠ RAM Mode Active (Production):$(NC)"; \
 		echo "  - Database and Redis in RAM"; \
@@ -283,7 +283,7 @@ start: check-env preflight-check ## Start all services
 	@echo "$(YELLOW)View logs: make logs$(NC)"
 
 stop: ## Stop all services
-	@set -a; . .env 2>/dev/null; set +a; \
+	@set -a; . ./.env 2>/dev/null; set +a; \
 	if grep -q "RAILS_ENV=production" .env 2>/dev/null; then \
 		echo "$(YELLOW)⚠ Production/RAM Mode: Creating backup before stopping...$(NC)"; \
 		$(MAKE) db-backup; \
@@ -293,7 +293,7 @@ stop: ## Stop all services
 	@echo "$(GREEN)✓ Services stopped$(NC)"
 
 restart: ## Restart all services
-	@set -a; . .env 2>/dev/null; set +a; \
+	@set -a; . ./.env 2>/dev/null; set +a; \
 	if grep -q "RAILS_ENV=production" .env 2>/dev/null; then \
 		echo "$(YELLOW)⚠ Production/RAM Mode: Creating backup before restart...$(NC)"; \
 		$(MAKE) db-backup; \
@@ -308,7 +308,7 @@ restart: ## Restart all services
 	@echo "$(GREEN)✓ Services restarted$(NC)"
 
 down: ## Stop and remove all containers
-	@set -a; . .env 2>/dev/null; set +a; \
+	@set -a; . ./.env 2>/dev/null; set +a; \
 	if grep -q "RAILS_ENV=production" .env 2>/dev/null; then \
 		echo "$(YELLOW)⚠ Production/RAM Mode: All data in RAM will be LOST!$(NC)"; \
 		echo "$(YELLOW)Creating final backup...$(NC)"; \
@@ -499,7 +499,7 @@ rails-console: check-env ## Open Rails console
 
 db-console: check-env ## Open PostgreSQL console
 	@echo "$(BLUE)Opening database console...$(NC)"
-	@set -a; . .env; set +a; \
+	@set -a; . ./.env; set +a; \
 	DB_NAME=$${POSTGRES_DB:-loomio_production}; \
 	docker compose exec db psql -U loomio -d $$DB_NAME
 
@@ -559,7 +559,7 @@ info: ## Show system and service information
 	@echo "$(BLUE)Services:$(NC)"
 	@docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
 	@echo ""
-	@set -a; . .env 2>/dev/null; set +a; \
+	@set -a; . ./.env 2>/dev/null; set +a; \
 	if grep -q "RAILS_ENV=production" .env 2>/dev/null; then \
 		echo "$(BLUE)Service URLs:$(NC)"; \
 		echo "  Loomio:         https://$$CANONICAL_HOST"; \
