@@ -375,6 +375,6 @@ For issues or questions:
 
 ## Related Documentation
 
-- [BACKUP_MIGRATION.md](./BACKUP_MIGRATION.md) - Backup system architecture
+- [BACKUP_GUIDE.md](./BACKUP_GUIDE.md) - Backup system architecture
 - [README.md](./README.md) - General setup guide
 - `.env.production` - Configuration reference
