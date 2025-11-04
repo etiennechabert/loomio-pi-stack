@@ -12,7 +12,8 @@ PROJECT_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 cd "$PROJECT_DIR"
 
 # Logging
-LOG_FILE="/var/log/loomio-watchdog.log"
+mkdir -p logs
+LOG_FILE="./logs/loomio-watchdog.log"
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
 }
