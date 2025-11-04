@@ -265,7 +265,7 @@ start: check-env preflight-check ## Start all services
 	@set -a; . ./.env; set +a; \
 	if grep -q "RAILS_ENV=production" .env 2>/dev/null; then \
 		echo "$(YELLOW)Production Mode: Using RAM mode for database and Redis$(NC)"; \
-		docker compose -f docker-compose.yml -f docker-compose.ram.yml up -d; \
+		docker compose --profile cloudflare -f docker-compose.yml -f docker-compose.ram.yml up -d; \
 		echo "$(BLUE)Initializing RAM database from Google Drive...$(NC)"; \
 		./scripts/init-ram.sh; \
 	else \
