@@ -37,7 +37,7 @@ log "${BLUE}══════════════════════�
 # Use shared restore-last-backup script
 log "${BLUE}Downloading and decrypting latest backup...${NC}"
 
-DECRYPTED_FILE=$(./scripts/restore-last-backup.sh)
+DECRYPTED_FILE=$(./scripts/restore-last-backup.sh | tr -d '\r\n' | xargs)
 
 if [ $? -ne 0 ] || [ -z "$DECRYPTED_FILE" ]; then
     log "${RED}✗ Failed to prepare backup${NC}"
@@ -45,6 +45,8 @@ if [ $? -ne 0 ] || [ -z "$DECRYPTED_FILE" ]; then
     log "${YELLOW}Run 'make init' to set up a new database${NC}"
     exit 0
 fi
+
+log "${BLUE}Decrypted file path: ${DECRYPTED_FILE}${NC}"
 
 # Wait for database to be ready
 log "${BLUE}Waiting for database to be ready...${NC}"
@@ -58,10 +60,16 @@ docker compose exec -T backup bash -c "
 
     DECRYPTED_FILE=\"${DECRYPTED_FILE}\"
 
+    echo \"Looking for file: \$DECRYPTED_FILE\"
+    echo \"Files in /backups:\"
+    ls -lah /backups/ || echo \"Cannot list /backups\"
+
     if [ ! -f \"\$DECRYPTED_FILE\" ]; then
-        echo 'ERROR: Decrypted backup not found'
+        echo \"ERROR: Decrypted backup not found at: \$DECRYPTED_FILE\"
         exit 1
     fi
+
+    echo \"✓ Found decrypted backup file\"
 
     # Check backup age
     BACKUP_AGE_SECONDS=\$(($(date +%s) - \$(stat -c %Y \"\$DECRYPTED_FILE\" 2>/dev/null || stat -f %m \"\$DECRYPTED_FILE\" 2>/dev/null)))
