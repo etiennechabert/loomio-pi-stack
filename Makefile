@@ -512,10 +512,31 @@ db-console: check-env ## Open PostgreSQL console
 
 ##@ Maintenance
 
-update: ## Update all containers
+update: check-env ## Update all containers
 	@echo "$(BLUE)Updating all containers...$(NC)"
+	@echo "$(BLUE)Creating pre-migration backup...$(NC)"
+	@set -a; . ./.env; set +a; \
+	if grep -q "RAILS_ENV=production" .env 2>/dev/null; then \
+		docker compose exec backup python3 /app/backup.py || echo "$(YELLOW)⚠ Backup failed$(NC)"; \
+	else \
+		mkdir -p data/db_backup; \
+		TIMESTAMP=$$(date +%Y%m%d-%H%M%S); \
+		docker compose exec -T db pg_dump -U loomio -d loomio_development > "data/db_backup/pre-migration-$$TIMESTAMP.sql" 2>/dev/null || echo "$(YELLOW)⚠ Backup failed$(NC)"; \
+	fi
+	@echo "$(BLUE)Pulling new images...$(NC)"
 	@docker compose pull
+	@echo "$(BLUE)Restarting containers...$(NC)"
 	@docker compose up -d
+	@echo "$(BLUE)Running database migrations...$(NC)"
+	@docker compose run --rm app rake db:migrate || { \
+		echo "$(RED)✗ Database migrations failed!$(NC)"; \
+		echo "$(RED)Database remains in pre-migration state.$(NC)"; \
+		echo "$(YELLOW)To rollback:$(NC)"; \
+		echo "  1. Check pre-migration backup in data/db_backup/ or /backups"; \
+		echo "  2. Run: make restore-db"; \
+		echo "  3. Restart with old image versions if needed"; \
+		exit 1; \
+	}
 	@echo "$(GREEN)✓ Update complete$(NC)"
 
 clean: ## Clean up Docker resources
