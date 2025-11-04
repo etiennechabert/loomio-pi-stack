@@ -98,22 +98,22 @@ root_folder_id = ${GDRIVE_FOLDER_ID}
 RCLONE_EOF
 
             # Download latest backup to tmpfs
-            echo 'Downloading from Google Drive...'
+            echo 'Downloading from Google Drive...' >&2
             rclone copy 'gdrive:Backup/db_backup' '${BACKUP_DIR}' \
                 --config \"\$RCLONE_CONFIG_DIR/rclone.conf\" \
                 --max-age 7d \
-                --progress
+                --quiet >&2
 
             rm -rf \"\$RCLONE_CONFIG_DIR\"
 
             # Check if we got a backup
             BACKUP_COUNT=\$(ls -1 ${BACKUP_DIR}/loomio_backup_*.sql.enc 2>/dev/null | wc -l)
             if [ \$BACKUP_COUNT -eq 0 ]; then
-                echo 'ERROR: No backup found in Google Drive'
+                echo 'ERROR: No backup found in Google Drive' >&2
                 exit 1
             fi
 
-            echo 'Download complete!'
+            echo 'Download complete!' >&2
         "
 
         if [ $? -ne 0 ]; then
@@ -135,7 +135,7 @@ EOF
 
         rclone sync "gdrive:Backup/db_backup" "$BACKUP_DIR" \
             --config "$RCLONE_CONFIG_DIR/rclone.conf" \
-            --progress
+            --quiet
 
         if [ $? -ne 0 ]; then
             log "${RED}✗ Failed to download from Google Drive${NC}"
