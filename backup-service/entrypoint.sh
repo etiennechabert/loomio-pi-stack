@@ -44,9 +44,8 @@ echo "  Retention: ${BACKUP_RETENTION_DAYS} days"
 echo "  Google Drive: ${GDRIVE_ENABLED}"
 echo ""
 
-# Run initial backup
-echo "Running initial backup..."
-python3 /app/backup.py
+# Skip initial backup - only backup via cron schedule
+# This prevents creating empty database backups during initialization
 
 # Set up cron job for scheduled backups and sync
 echo "${BACKUP_SCHEDULE} /app/backup-and-sync.sh >> /proc/1/fd/1 2>&1" > /etc/cron.d/loomio-backup
