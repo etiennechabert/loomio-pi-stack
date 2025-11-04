@@ -94,6 +94,14 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# Run migrations to update database schema to match current app version
+log "${BLUE}Running database migrations...${NC}"
+docker compose run --rm app rake db:migrate
+
+if [ $? -ne 0 ]; then
+    log "${YELLOW}⚠ Migrations failed, but continuing...${NC}"
+fi
+
 log "${GREEN}═══════════════════════════════════════════════════${NC}"
 log "${GREEN}✓ RAM database initialized from Google Drive${NC}"
 log "${GREEN}═══════════════════════════════════════════════════${NC}"

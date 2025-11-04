@@ -509,6 +509,8 @@ update: ## Update all containers
 	@echo "$(BLUE)Updating all containers...$(NC)"
 	@docker compose pull
 	@docker compose up -d
+	@echo "$(BLUE)Running database migrations...$(NC)"
+	@docker compose run --rm app rake db:migrate
 	@echo "$(GREEN)✓ Update complete$(NC)"
 
 clean: ## Clean up Docker resources

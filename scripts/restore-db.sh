@@ -106,6 +106,14 @@ else
     exit 1
 fi
 
+# Run migrations to update database schema to match current app version
+log "${BLUE}Running database migrations...${NC}"
+docker compose run --rm app rake db:migrate
+
+if [ $? -ne 0 ]; then
+    log "${YELLOW}⚠ Migrations failed, but continuing...${NC}"
+fi
+
 # Restart app services
 log "${BLUE}Restarting app services...${NC}"
 docker compose start app worker channels hocuspocus
