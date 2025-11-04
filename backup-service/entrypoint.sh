@@ -19,11 +19,25 @@ export DB_HOST=${DB_HOST:-db}
 export DB_PORT=${DB_PORT:-5432}
 export DB_NAME=${DB_NAME:-loomio_production}
 export DB_USER=${DB_USER:-loomio}
-export BACKUP_SCHEDULE=${BACKUP_SCHEDULE:-"0 * * * *"}
 export BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-30}
 export GDRIVE_ENABLED=${GDRIVE_ENABLED:-false}
+export RAILS_ENV=${RAILS_ENV:-development}
+
+# Auto-adjust backup schedule based on environment
+# Production = RAM mode = hourly backups
+if [ "$RAILS_ENV" = "production" ]; then
+    export BACKUP_SCHEDULE="0 * * * *"  # Hourly in production/RAM mode
+    export IS_RAM_MODE="true"
+    echo "Production Mode (RAM): using HOURLY backups"
+else
+    export BACKUP_SCHEDULE=${BACKUP_SCHEDULE:-"0 */6 * * *"}  # Every 6 hours in dev
+    export IS_RAM_MODE="false"
+    echo "Development Mode (Disk): using 6-hourly backups"
+fi
 
 echo "Configuration:"
+echo "  Environment: ${RAILS_ENV}"
+echo "  Storage: $([ "$IS_RAM_MODE" = "true" ] && echo "RAM (tmpfs)" || echo "Disk (volumes)")"
 echo "  Database: ${DB_USER}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
 echo "  Schedule: ${BACKUP_SCHEDULE}"
 echo "  Retention: ${BACKUP_RETENTION_DAYS} days"
@@ -34,8 +48,8 @@ echo ""
 echo "Running initial backup..."
 python3 /app/backup.py
 
-# Set up cron job for scheduled backups
-echo "${BACKUP_SCHEDULE} python3 /app/backup.py >> /proc/1/fd/1 2>&1" > /etc/cron.d/loomio-backup
+# Set up cron job for scheduled backups and sync
+echo "${BACKUP_SCHEDULE} /app/backup-and-sync.sh >> /proc/1/fd/1 2>&1" > /etc/cron.d/loomio-backup
 chmod 0644 /etc/cron.d/loomio-backup
 crontab /etc/cron.d/loomio-backup
 
