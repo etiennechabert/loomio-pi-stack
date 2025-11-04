@@ -102,48 +102,65 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# Create pre-migration backup for safety
-log "${BLUE}Creating pre-migration backup...${NC}"
-PRE_MIGRATION_BACKUP="/backups/pre-migration-$(date +%Y%m%d-%H%M%S).sql"
+# Check if migrations are pending
+log "${BLUE}Checking for pending migrations...${NC}"
 
-docker compose exec -T backup bash -c "
-    PGPASSWORD='${POSTGRES_PASSWORD}' pg_dump -h db -U '${POSTGRES_USER:-loomio}' -d '${POSTGRES_DB:-loomio_production}' > '${PRE_MIGRATION_BACKUP}' 2>&1
-"
+# Use Rails to check migration status (don't run migrations yet, just check)
+if docker compose run --rm app rake db:migrate:status >/dev/null 2>&1; then
+    # Command succeeded - check if there are pending migrations
+    PENDING_COUNT=$(docker compose run --rm app rake db:migrate:status 2>/dev/null | grep -c "^\s*down" || echo "0")
 
-if [ $? -ne 0 ]; then
-    log "${YELLOW}⚠ Warning: Pre-migration backup failed, but continuing...${NC}"
-else
-    log "${GREEN}✓ Pre-migration backup created: $(basename ${PRE_MIGRATION_BACKUP})${NC}"
-fi
+    if [ "$PENDING_COUNT" = "0" ]; then
+        log "${GREEN}✓ No pending migrations${NC}"
+        log "${YELLOW}  Database schema is up to date${NC}"
+    else
+        log "${YELLOW}⚠ Found $PENDING_COUNT pending migration(s)${NC}"
 
-# Run migrations to update database schema to match current app version
-log "${BLUE}Running database migrations...${NC}"
-docker compose run --rm app rake db:migrate
+        # Create pre-migration backup for safety
+        log "${BLUE}Creating pre-migration backup...${NC}"
+        PRE_MIGRATION_BACKUP="/backups/pre-migration-$(date +%Y%m%d-%H%M%S).sql"
 
-if [ $? -ne 0 ]; then
-    log "${RED}✗ Database migrations failed!${NC}"
-    log "${RED}Attempting to restore pre-migration backup...${NC}"
-
-    # Try to restore pre-migration backup
-    if [ -f "${PRE_MIGRATION_BACKUP}" ]; then
         docker compose exec -T backup bash -c "
-            PGPASSWORD='${POSTGRES_PASSWORD}' psql -h db -U '${POSTGRES_USER:-loomio}' -d '${POSTGRES_DB:-loomio_production}' < '${PRE_MIGRATION_BACKUP}' 2>&1 | head -20
+            PGPASSWORD='${POSTGRES_PASSWORD}' pg_dump -h db -U '${POSTGRES_USER:-loomio}' -d '${POSTGRES_DB:-loomio_production}' > '${PRE_MIGRATION_BACKUP}' 2>&1
         "
 
-        if [ $? -eq 0 ]; then
-            log "${GREEN}✓ Restored pre-migration backup${NC}"
-            log "${YELLOW}System rolled back to pre-migration state${NC}"
+        if [ $? -ne 0 ]; then
+            log "${YELLOW}⚠ Warning: Pre-migration backup failed, but continuing...${NC}"
         else
-            log "${RED}✗ Failed to restore pre-migration backup${NC}"
+            log "${GREEN}✓ Pre-migration backup created: $(basename ${PRE_MIGRATION_BACKUP})${NC}"
         fi
+
+        # Run migrations to update database schema to match current app version
+        log "${BLUE}Running database migrations...${NC}"
+        docker compose run --rm app rake db:migrate
+
+        if [ $? -ne 0 ]; then
+            log "${RED}✗ Database migrations failed!${NC}"
+            log "${RED}Attempting to restore pre-migration backup...${NC}"
+
+            # Try to restore pre-migration backup
+            docker compose exec -T backup bash -c "
+                PGPASSWORD='${POSTGRES_PASSWORD}' psql -h db -U '${POSTGRES_USER:-loomio}' -d '${POSTGRES_DB:-loomio_production}' < '${PRE_MIGRATION_BACKUP}' 2>&1 | head -20
+            "
+
+            if [ $? -eq 0 ]; then
+                log "${GREEN}✓ Restored pre-migration backup${NC}"
+                log "${YELLOW}System rolled back to pre-migration state${NC}"
+            else
+                log "${RED}✗ Failed to restore pre-migration backup${NC}"
+            fi
+
+            log "${RED}Cannot start with failed migrations.${NC}"
+            log "${YELLOW}Check app logs for migration errors.${NC}"
+            exit 1
+        fi
+
+        log "${GREEN}✓ Database migrations completed successfully${NC}"
     fi
-
-    log "${RED}Cannot start with failed migrations.${NC}"
-    log "${YELLOW}Check app logs for migration errors.${NC}"
-    exit 1
+else
+    log "${RED}✗ Cannot check migration status${NC}"
+    log "${YELLOW}Continuing without running migrations (database may be at older schema version)${NC}"
 fi
-
-log "${GREEN}✓ Database migrations completed successfully${NC}"
 
 log "${GREEN}═══════════════════════════════════════════════════${NC}"
 log "${GREEN}✓ RAM database initialized from Google Drive${NC}"
