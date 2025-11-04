@@ -201,6 +201,8 @@ services:
       - apparmor:unconfined
     environment:
       DOCKER_HOST: /var/run/docker.sock
+      # Disable Netdata Cloud for local/standalone use
+      NETDATA_DISABLE_CLOUD: 1
       NETDATA_CLAIM_TOKEN: ${NETDATA_CLAIM_TOKEN}
       NETDATA_CLAIM_URL: https://app.netdata.cloud
       NETDATA_CLAIM_ROOMS: ${NETDATA_CLAIM_ROOMS}
@@ -220,6 +222,8 @@ services:
       - /sys:/host/sys:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./monitoring/netdata:/etc/netdata/custom-config:ro
+      # Mount netdata.conf to disable cloud
+      - ./monitoring/netdata/netdata.conf:/etc/netdata/netdata.conf:ro
     ports:
       - "${NETDATA_PORT:-19999}:19999"
     networks:
