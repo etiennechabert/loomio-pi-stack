@@ -162,7 +162,7 @@ if [ -z "$LATEST_BACKUP" ]; then
     exit 1
 fi
 
-log "${GREEN}✓ Found backup: $(basename $LATEST_BACKUP)${NC}"
+log "${GREEN}✓ Found backup: $(basename "$LATEST_BACKUP")${NC}"
 
 # Decrypt backup
 log "${BLUE}Decrypting backup...${NC}"
@@ -259,7 +259,7 @@ except Exception as e:
     fi
 fi
 
-log "${GREEN}✓ Backup ready: $(basename $DECRYPTED_FILE)${NC}"
+log "${GREEN}✓ Backup ready: $(basename "$DECRYPTED_FILE")${NC}"
 
 # Output the decrypted file path for the caller
 echo "$DECRYPTED_FILE"
