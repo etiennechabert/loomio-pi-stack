@@ -24,7 +24,7 @@ BACKUP_DIR = Path('/backups')
 BACKUP_ENCRYPTION_KEY = os.getenv('BACKUP_ENCRYPTION_KEY')
 BACKUP_RETENTION_DAYS = int(os.getenv('BACKUP_RETENTION_DAYS', '30'))
 GDRIVE_ENABLED = os.getenv('GDRIVE_ENABLED', 'false').lower() == 'true'
-GDRIVE_CREDENTIALS = os.getenv('GDRIVE_CREDENTIALS')
+GDRIVE_TOKEN = os.getenv('GDRIVE_TOKEN')
 GDRIVE_FOLDER_ID = os.getenv('GDRIVE_FOLDER_ID')
 
 
@@ -123,62 +123,53 @@ def encrypt_backup(backup_path):
 
 
 def upload_to_gdrive(file_path):
-    """Upload backup to Google Drive"""
+    """Upload backup to Google Drive using rclone with OAuth2"""
     if not GDRIVE_ENABLED:
         return True
 
-    if not GDRIVE_CREDENTIALS or not GDRIVE_FOLDER_ID:
-        log("⚠ Google Drive upload skipped (credentials or folder ID missing)")
+    if not GDRIVE_TOKEN or not GDRIVE_FOLDER_ID:
+        log("⚠ Google Drive upload skipped (token or folder ID missing)")
         return True
 
     try:
-        from google.oauth2 import service_account
-        from googleapiclient.discovery import build
-        from googleapiclient.http import MediaFileUpload
+        log("Uploading to Google Drive via rclone...")
 
-        log("Uploading to Google Drive...")
+        # Create temporary rclone config
+        import tempfile
+        config_dir = tempfile.mkdtemp(prefix='rclone-')
+        config_file = os.path.join(config_dir, 'rclone.conf')
 
-        # Parse credentials
-        credentials_dict = json.loads(GDRIVE_CREDENTIALS)
-        credentials = service_account.Credentials.from_service_account_info(
-            credentials_dict,
-            scopes=['https://www.googleapis.com/auth/drive.file']
-        )
+        # Write rclone config with OAuth2 token
+        with open(config_file, 'w') as f:
+            f.write(f"""[gdrive]
+type = drive
+scope = drive
+token = {GDRIVE_TOKEN}
+root_folder_id = {GDRIVE_FOLDER_ID}
+""")
 
-        service = build('drive', 'v3', credentials=credentials)
+        # Upload file using rclone
+        # Destination: gdrive:Backup/db_backup/<filename>
+        dest_path = f"gdrive:Backup/db_backup/{file_path.name}"
 
-        # Find or create Backup folder
-        query = f"name='Backup' and '{GDRIVE_FOLDER_ID}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false"
-        results = service.files().list(q=query, fields='files(id, name)').execute()
-        folders = results.get('files', [])
+        result = subprocess.run([
+            'rclone', 'copyto',
+            str(file_path),
+            dest_path,
+            '--config', config_file,
+            '--progress'
+        ], capture_output=True, text=True, timeout=600)
 
-        if folders:
-            backup_folder_id = folders[0]['id']
+        # Clean up config
+        os.unlink(config_file)
+        os.rmdir(config_dir)
+
+        if result.returncode == 0:
+            log(f"✓ Uploaded to Google Drive: {file_path.name}")
+            return True
         else:
-            # Create Backup folder
-            folder_metadata = {
-                'name': 'Backup',
-                'mimeType': 'application/vnd.google-apps.folder',
-                'parents': [GDRIVE_FOLDER_ID]
-            }
-            folder = service.files().create(body=folder_metadata, fields='id').execute()
-            backup_folder_id = folder['id']
-
-        # Upload file to Backup folder
-        file_metadata = {
-            'name': file_path.name,
-            'parents': [backup_folder_id]
-        }
-
-        media = MediaFileUpload(str(file_path), resumable=True)
-        file = service.files().create(
-            body=file_metadata,
-            media_body=media,
-            fields='id,name,size'
-        ).execute()
-
-        log(f"✓ Uploaded to Google Drive: {file.get('name')} (ID: {file.get('id')})")
-        return True
+            log(f"✗ Google Drive upload failed: {result.stderr}")
+            return False
 
     except Exception as e:
         log(f"✗ Google Drive upload failed: {e}")
