@@ -1,135 +1,115 @@
 #!/bin/bash
 #
-# Database Restore Script for Loomio
-# Restores a PostgreSQL backup (encrypted or unencrypted)
+# Restore Database from Backup
+# Downloads latest encrypted backup from Google Drive (if enabled) and restores to database
+#
+# This script is for manual database restoration with user confirmation.
+# For automatic restoration (RAM mode), use init-ram.sh instead.
 #
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-BACKUP_DIR="$PROJECT_DIR/backups"
-
-# Colors for output
-RED='\033[0;31m'
+# Colors
+BLUE='\033[0;34m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+RED='\033[0;31m'
+NC='\033[0m'
 
-# Load environment variables
-if [ -f "$PROJECT_DIR/.env" ]; then
+log() {
+    echo -e "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+}
+
+# Load environment
+if [ -f .env ]; then
     set -a
-    source "$PROJECT_DIR/.env"
+    . .env
     set +a
 else
-    echo -e "${RED}Error: .env file not found${NC}"
+    log "${RED}✗ .env file not found!${NC}"
     exit 1
 fi
 
-echo "╔════════════════════════════════════════════════════════════╗"
-echo "║         Loomio Database Restore Utility                    ║"
-echo "╚════════════════════════════════════════════════════════════╝"
-echo ""
+log "${BLUE}═══════════════════════════════════════════════════${NC}"
+log "${BLUE}  Database Restore${NC}"
+log "${BLUE}═══════════════════════════════════════════════════${NC}"
 
-# List available backups
-echo -e "${YELLOW}Available backups:${NC}"
-echo ""
-ls -lh "$BACKUP_DIR"/loomio_backup_*.sql* 2>/dev/null || echo "No backups found"
-echo ""
+# Use shared restore-last-backup script
+log "${BLUE}Preparing latest backup...${NC}"
 
-# Prompt for backup file
-read -p "Enter backup filename to restore: " BACKUP_FILE
+DECRYPTED_FILE=$(./scripts/restore-last-backup.sh)
 
-if [ ! -f "$BACKUP_DIR/$BACKUP_FILE" ]; then
-    echo -e "${RED}Error: Backup file not found${NC}"
+if [ $? -ne 0 ] || [ -z "$DECRYPTED_FILE" ]; then
+    log "${RED}✗ Failed to prepare backup${NC}"
     exit 1
-fi
-
-# Check if encrypted
-if [[ "$BACKUP_FILE" == *.enc ]]; then
-    if [ -z "$BACKUP_ENCRYPTION_KEY" ]; then
-        echo -e "${RED}Error: Backup is encrypted but BACKUP_ENCRYPTION_KEY not set in .env${NC}"
-        exit 1
-    fi
-
-    echo -e "${YELLOW}Decrypting backup...${NC}"
-    DECRYPTED_FILE="${BACKUP_FILE%.enc}"
-
-    # Decrypt using Python (same method as backup service)
-    python3 - <<EOF
-import sys
-from pathlib import Path
-from cryptography.fernet import Fernet
-import base64
-import hashlib
-
-def derive_fernet_key(password):
-    kdf_output = hashlib.pbkdf2_hmac('sha256', password.encode(), b'loomio-backup-salt', 100000, dklen=32)
-    return base64.urlsafe_b64encode(kdf_output)
-
-try:
-    fernet_key = derive_fernet_key("$BACKUP_ENCRYPTION_KEY")
-    fernet = Fernet(fernet_key)
-
-    with open("$BACKUP_DIR/$BACKUP_FILE", 'rb') as f:
-        encrypted_data = f.read()
-
-    decrypted_data = fernet.decrypt(encrypted_data)
-
-    with open("$BACKUP_DIR/$DECRYPTED_FILE", 'wb') as f:
-        f.write(decrypted_data)
-
-    print("✓ Decryption successful")
-except Exception as e:
-    print(f"✗ Decryption failed: {e}")
-    sys.exit(1)
-EOF
-
-    RESTORE_FILE="$BACKUP_DIR/$DECRYPTED_FILE"
-else
-    RESTORE_FILE="$BACKUP_DIR/$BACKUP_FILE"
 fi
 
 # Confirm restore
+log "${YELLOW}═══════════════════════════════════════════════════${NC}"
+log "${YELLOW}⚠ WARNING: This will REPLACE your current database!${NC}"
+log "${YELLOW}═══════════════════════════════════════════════════${NC}"
+log "${YELLOW}Backup file: $(basename $DECRYPTED_FILE)${NC}"
+log "${YELLOW}Database: ${POSTGRES_DB:-loomio_production}${NC}"
 echo ""
-echo -e "${RED}WARNING: This will DROP and recreate the database!${NC}"
-echo -e "${RED}All current data will be lost!${NC}"
-echo ""
-read -p "Are you sure you want to continue? (yes/no): " CONFIRM
+read -p "Type 'yes' to confirm restore: " confirm
 
-if [ "$CONFIRM" != "yes" ]; then
-    echo "Restore cancelled"
+if [ "$confirm" != "yes" ]; then
+    log "${GREEN}✓ Restore cancelled${NC}"
+    # Cleanup decrypted file
+    if [ "${RAILS_ENV}" = "production" ]; then
+        # In RAM mode, cleanup is inside container
+        docker compose exec -T backup bash -c "rm -f \"$DECRYPTED_FILE\""
+    else
+        # In disk mode, cleanup is on host
+        rm -f "$DECRYPTED_FILE"
+    fi
     exit 0
 fi
 
-echo ""
-echo -e "${YELLOW}Starting database restore...${NC}"
-
-# Stop services that depend on the database
-echo "Stopping dependent services..."
+# Stop app services
+log "${BLUE}Stopping app services...${NC}"
 docker compose stop app worker channels hocuspocus
 
-# Drop and recreate database
-echo "Recreating database..."
-docker compose exec -T db psql -U "$POSTGRES_USER" -d postgres -c "DROP DATABASE IF EXISTS $POSTGRES_DB;"
-docker compose exec -T db psql -U "$POSTGRES_USER" -d postgres -c "CREATE DATABASE $POSTGRES_DB;"
+# Restore database
+log "${BLUE}Restoring database...${NC}"
 
-# Restore backup
-echo "Restoring backup..."
-cat "$RESTORE_FILE" | docker compose exec -T db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+if [ "${RAILS_ENV}" = "production" ]; then
+    # RAM mode: restore from backup container
+    docker compose exec -T backup bash -c "
+        set -e
+        DECRYPTED_FILE=\"$DECRYPTED_FILE\"
 
-# Clean up decrypted file if it was created
-if [[ "$BACKUP_FILE" == *.enc ]]; then
-    rm -f "$RESTORE_FILE"
+        if [ ! -f \"\$DECRYPTED_FILE\" ]; then
+            echo 'ERROR: Decrypted backup not found'
+            exit 1
+        fi
+
+        PGPASSWORD='${POSTGRES_PASSWORD}' psql -h db -U '${POSTGRES_USER:-loomio}' -d '${POSTGRES_DB:-loomio_production}' < \"\$DECRYPTED_FILE\"
+
+        # Cleanup
+        rm -f \"\$DECRYPTED_FILE\"
+        echo 'Restore complete!'
+    "
+else
+    # Disk mode: restore from host
+    export PGPASSWORD="${POSTGRES_PASSWORD}"
+    cat "$DECRYPTED_FILE" | docker compose exec -T db psql -U "${POSTGRES_USER:-loomio}" -d "${POSTGRES_DB:-loomio_production}"
+
+    # Cleanup decrypted file
+    rm -f "$DECRYPTED_FILE"
 fi
 
-# Restart services
-echo "Restarting services..."
-docker compose up -d app worker channels hocuspocus
+if [ $? -eq 0 ]; then
+    log "${GREEN}✓ Database restored successfully${NC}"
+else
+    log "${RED}✗ Database restore failed${NC}"
+    exit 1
+fi
 
-echo ""
-echo -e "${GREEN}╔════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║  Database restore completed successfully!                 ║${NC}"
-echo -e "${GREEN}╚════════════════════════════════════════════════════════════╝${NC}"
-echo ""
-echo "Services are starting up. Check logs with: docker compose logs -f"
+# Restart app services
+log "${BLUE}Restarting app services...${NC}"
+docker compose start app worker channels hocuspocus
+
+log "${GREEN}═══════════════════════════════════════════════════${NC}"
+log "${GREEN}✓ Database restore completed successfully!${NC}"
+log "${GREEN}═══════════════════════════════════════════════════${NC}"

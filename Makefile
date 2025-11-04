@@ -1,4 +1,4 @@
-.PHONY: help install setup init start stop restart down status logs backup restore update clean enable-autostart disable-autostart check-config health first-time-setup
+.PHONY: help install init-env-dev init-env-prod check-env init start stop restart down status logs backup restore update clean enable-autostart disable-autostart check-config health reset-db auto-create-admin create-admin promote-user list-users rails-console db-console init-gdrive sync-files restore-files list-backups info first-time-setup
 
 # Default target
 .DEFAULT_GOAL := help
@@ -36,65 +36,98 @@ install: ## Install Docker and dependencies
 	@sudo apt install -y git openssl python3 python3-pip make
 	@echo "$(GREEN)✓ Installation complete!$(NC)"
 
-check-env:
-	@if [ ! -f .env ]; then \
-		echo "$(RED)✗ .env file not found!$(NC)"; \
-		echo "$(YELLOW)Run: make setup$(NC)"; \
+init-env-dev: ## Setup development environment (creates .env from .env.development)
+	@echo "$(BLUE)Initializing DEVELOPMENT environment...$(NC)"
+	@if [ -f .env ]; then \
+		echo "$(RED)✗ .env file already exists!$(NC)"; \
+		echo ""; \
+		echo "$(YELLOW)To avoid overwriting your configuration:$(NC)"; \
+		echo "  1. Rename existing file:  mv .env .env.backup"; \
+		echo "  2. Or remove it:          rm .env"; \
+		echo "  3. Then run:              make init-env-dev"; \
+		echo ""; \
 		exit 1; \
 	fi
-
-setup: ## Create .env and generate secrets
-	@echo "$(BLUE)Setting up Loomio Pi Stack...$(NC)"
-	@if [ -f .env ]; then \
-		echo "$(YELLOW)⚠ .env already exists. Backup created as .env.backup$(NC)"; \
-		cp .env .env.backup; \
-	fi
-	@cp .env.example .env
+	@cp .env.development .env
+	@echo "$(GREEN)✓ Development environment initialized!$(NC)"
 	@echo ""
-	@echo "$(BLUE)Generating secrets...$(NC)"
+	@echo "$(BLUE)Configuration:$(NC)"
+	@echo "  Environment: DEVELOPMENT"
+	@echo "  URL: http://localhost:3000"
+	@echo "  Database: loomio_development"
+	@echo "  SSL: Disabled"
+	@echo ""
+	@echo "$(GREEN)Next steps:$(NC)"
+	@echo "  1. Run: make init"
+	@echo "  2. Run: make start"
+	@echo "  3. Run: make add-admin  (to create your first admin user)"
+
+init-env-prod: ## Setup production environment (creates .env from .env.production with generated secrets)
+	@echo "$(BLUE)Initializing PRODUCTION environment...$(NC)"
+	@if [ -f .env ]; then \
+		echo "$(RED)✗ .env file already exists!$(NC)"; \
+		echo ""; \
+		echo "$(YELLOW)To avoid overwriting your configuration:$(NC)"; \
+		echo "  1. Rename existing file:  mv .env .env.backup"; \
+		echo "  2. Or remove it:          rm .env"; \
+		echo "  3. Then run:              make init-env-prod"; \
+		echo ""; \
+		exit 1; \
+	fi
+	@cp .env.production .env
+	@echo ""
+	@echo "$(BLUE)Generating production secrets...$(NC)"
 	@SECRET_KEY_BASE=$$(openssl rand -hex 64); \
 	LOOMIO_HMAC_KEY=$$(openssl rand -hex 32); \
 	DEVISE_SECRET=$$(openssl rand -hex 32); \
 	BACKUP_ENCRYPTION_KEY=$$(openssl rand -hex 32); \
 	POSTGRES_PASSWORD=$$(openssl rand -base64 32); \
-	LOOMIO_ADMIN_PASSWORD=$$(openssl rand -base64 24); \
-	sed -i.bak "s/SECRET_KEY_BASE=generate-with-openssl-rand-hex-64/SECRET_KEY_BASE=$$SECRET_KEY_BASE/" .env; \
-	sed -i.bak "s/LOOMIO_HMAC_KEY=generate-with-openssl-rand-hex-32/LOOMIO_HMAC_KEY=$$LOOMIO_HMAC_KEY/" .env; \
-	sed -i.bak "s/DEVISE_SECRET=generate-with-openssl-rand-hex-32/DEVISE_SECRET=$$DEVISE_SECRET/" .env; \
-	sed -i.bak "s/BACKUP_ENCRYPTION_KEY=generate-with-openssl-rand-hex-32/BACKUP_ENCRYPTION_KEY=$$BACKUP_ENCRYPTION_KEY/" .env; \
-	sed -i.bak "s|POSTGRES_PASSWORD=change-this-secure-password|POSTGRES_PASSWORD=$$POSTGRES_PASSWORD|" .env; \
-	sed -i.bak "s|LOOMIO_ADMIN_EMAIL=|LOOMIO_ADMIN_EMAIL=admin@loomio.local|" .env; \
-	sed -i.bak "s|LOOMIO_ADMIN_PASSWORD=|LOOMIO_ADMIN_PASSWORD=$$LOOMIO_ADMIN_PASSWORD|" .env; \
+	sed -i.bak "s/POSTGRES_PASSWORD=CHANGE_THIS_SECURE_PASSWORD/POSTGRES_PASSWORD=$$POSTGRES_PASSWORD/" .env; \
+	sed -i.bak "s/SECRET_KEY_BASE=GENERATE_WITH_OPENSSL_RAND_HEX_64/SECRET_KEY_BASE=$$SECRET_KEY_BASE/" .env; \
+	sed -i.bak "s/LOOMIO_HMAC_KEY=GENERATE_WITH_OPENSSL_RAND_HEX_32/LOOMIO_HMAC_KEY=$$LOOMIO_HMAC_KEY/" .env; \
+	sed -i.bak "s/DEVISE_SECRET=GENERATE_WITH_OPENSSL_RAND_HEX_32/DEVISE_SECRET=$$DEVISE_SECRET/" .env; \
+	sed -i.bak "s/BACKUP_ENCRYPTION_KEY=GENERATE_WITH_OPENSSL_RAND_HEX_32/BACKUP_ENCRYPTION_KEY=$$BACKUP_ENCRYPTION_KEY/" .env; \
 	rm .env.bak; \
-	echo "$(GREEN)✓ Secrets generated!$(NC)"; \
-	echo ""; \
-	echo "$(GREEN)✓ Admin credentials generated:$(NC)"; \
-	echo "  Email: admin@loomio.local"; \
-	echo "  Password: $$LOOMIO_ADMIN_PASSWORD"
+	echo "$(GREEN)✓ Secrets generated!$(NC)"
 	@echo ""
 	@echo "$(YELLOW)⚠ IMPORTANT: Edit .env and configure:$(NC)"
 	@echo "  - CANONICAL_HOST (your domain)"
 	@echo "  - SUPPORT_EMAIL"
 	@echo "  - SMTP settings (email server)"
+	@echo "  - GDRIVE_CREDENTIALS and GDRIVE_FOLDER_ID (for backups)"
 	@echo ""
 	@echo "$(BLUE)Edit with: nano .env$(NC)"
 	@echo ""
-	@echo "$(GREEN)After editing .env, run: make init$(NC)"
+	@echo "$(GREEN)After editing:$(NC)"
+	@echo "  1. Run: make init"
+	@echo "  2. Run: make start"
+	@echo "  3. Run: make add-admin  (to create your first admin user)"
+
+check-env:
+	@if [ ! -f .env ]; then \
+		echo "$(RED)✗ .env file not found!$(NC)"; \
+		echo "$(YELLOW)Run either:$(NC)"; \
+		echo "  make init-env-dev  (for development)"; \
+		echo "  make init-env-prod (for production)"; \
+		exit 1; \
+	fi
 
 check-config: ## Validate configuration
 	@echo "$(BLUE)Validating configuration...$(NC)"
 	@docker compose config > /dev/null && echo "$(GREEN)✓ docker-compose.yml is valid$(NC)" || echo "$(RED)✗ docker-compose.yml has errors$(NC)"
 	@if [ -f .env ]; then \
 		echo "$(GREEN)✓ .env exists$(NC)"; \
-		if grep -q "change-this" .env 2>/dev/null; then \
+		if grep -q "CHANGE_THIS" .env 2>/dev/null; then \
 			echo "$(YELLOW)⚠ Warning: Found default passwords in .env$(NC)"; \
 		fi; \
-		if grep -q "generate-with" .env 2>/dev/null; then \
+		if grep -q "GENERATE_WITH" .env 2>/dev/null; then \
 			echo "$(YELLOW)⚠ Warning: Some secrets not generated in .env$(NC)"; \
 		fi; \
 	else \
 		echo "$(RED)✗ .env not found$(NC)"; \
 	fi
+
+##@ Database Management
 
 init: check-env ## Initialize database (first time only)
 	@echo "$(BLUE)Building services...$(NC)"
@@ -134,33 +167,153 @@ reset-db: ## Reset database to empty state (DESTRUCTIVE!)
 	@echo "$(YELLOW)Next steps:$(NC)"
 	@echo "  1. Run 'make init' to initialize fresh database"
 	@echo "  2. Run 'make start' to start services"
-	@echo "  3. Admin user will be auto-created from .env credentials"
 
 ##@ Service Management
 
-start: check-env ## Start all services
+preflight-check:
+	@if grep -q "RAILS_ENV=production" .env 2>/dev/null; then \
+		echo "$(BLUE)Running production preflight checks...$(NC)"; \
+		set -a; . .env; set +a; \
+		ERRORS=0; \
+		\
+		echo "$(BLUE)Checking critical configuration...$(NC)"; \
+		\
+		if [ "$$RAILS_ENV" != "production" ]; then \
+			echo "$(RED)✗ RAILS_ENV must be 'production'$(NC)"; \
+			ERRORS=$$((ERRORS + 1)); \
+		else \
+			echo "$(GREEN)✓ RAILS_ENV set to production$(NC)"; \
+		fi; \
+		\
+		if [ -z "$$CANONICAL_HOST" ] || echo "$$CANONICAL_HOST" | grep -qE '(localhost|example\.com|127\.0\.0\.1)'; then \
+			echo "$(RED)✗ CANONICAL_HOST must be set to your actual domain$(NC)"; \
+			ERRORS=$$((ERRORS + 1)); \
+		else \
+			echo "$(GREEN)✓ CANONICAL_HOST configured: $$CANONICAL_HOST$(NC)"; \
+		fi; \
+		\
+		if [ "$$FORCE_SSL" != "true" ]; then \
+			echo "$(RED)✗ FORCE_SSL must be enabled (true) for production$(NC)"; \
+			ERRORS=$$((ERRORS + 1)); \
+		else \
+			echo "$(GREEN)✓ SSL enforcement enabled$(NC)"; \
+		fi; \
+		\
+		if [ -z "$$SECRET_KEY_BASE" ] || echo "$$SECRET_KEY_BASE" | grep -qE '(GENERATE|test|dev|example)'; then \
+			echo "$(RED)✗ SECRET_KEY_BASE must be a secure random value$(NC)"; \
+			ERRORS=$$((ERRORS + 1)); \
+		else \
+			echo "$(GREEN)✓ SECRET_KEY_BASE configured$(NC)"; \
+		fi; \
+		\
+		if [ -z "$$LOOMIO_HMAC_KEY" ] || echo "$$LOOMIO_HMAC_KEY" | grep -qE '(GENERATE|test|dev|example)'; then \
+			echo "$(RED)✗ LOOMIO_HMAC_KEY must be a secure random value$(NC)"; \
+			ERRORS=$$((ERRORS + 1)); \
+		else \
+			echo "$(GREEN)✓ LOOMIO_HMAC_KEY configured$(NC)"; \
+		fi; \
+		\
+		if [ -z "$$DEVISE_SECRET" ] || echo "$$DEVISE_SECRET" | grep -qE '(GENERATE|test|dev|example)'; then \
+			echo "$(RED)✗ DEVISE_SECRET must be a secure random value$(NC)"; \
+			ERRORS=$$((ERRORS + 1)); \
+		else \
+			echo "$(GREEN)✓ DEVISE_SECRET configured$(NC)"; \
+		fi; \
+		\
+		if [ -z "$$BACKUP_ENCRYPTION_KEY" ] || echo "$$BACKUP_ENCRYPTION_KEY" | grep -qE '(GENERATE|test|dev|example)'; then \
+			echo "$(RED)✗ BACKUP_ENCRYPTION_KEY must be a secure random value$(NC)"; \
+			ERRORS=$$((ERRORS + 1)); \
+		else \
+			echo "$(GREEN)✓ Backup encryption configured$(NC)"; \
+		fi; \
+		\
+		if [ -z "$$SMTP_SERVER" ] || echo "$$SMTP_SERVER" | grep -qE '(example\.com|localhost)'; then \
+			echo "$(YELLOW)⚠ WARNING: SMTP not configured - email features will not work$(NC)"; \
+		else \
+			echo "$(GREEN)✓ SMTP server configured: $$SMTP_SERVER$(NC)"; \
+		fi; \
+		\
+		if [ -z "$$POSTGRES_PASSWORD" ] || echo "$$POSTGRES_PASSWORD" | grep -qE '(CHANGE|password|test|dev)'; then \
+			echo "$(RED)✗ POSTGRES_PASSWORD must be a secure password$(NC)"; \
+			ERRORS=$$((ERRORS + 1)); \
+		else \
+			echo "$(GREEN)✓ Database password configured$(NC)"; \
+		fi; \
+		\
+		echo ""; \
+		if [ $$ERRORS -gt 0 ]; then \
+			echo "$(RED)✗ Production preflight failed with $$ERRORS critical error(s)$(NC)"; \
+			echo "$(YELLOW)Fix the errors above before starting production$(NC)"; \
+			exit 1; \
+		else \
+			echo "$(GREEN)✓ All critical checks passed$(NC)"; \
+		fi; \
+	fi
+
+start: check-env preflight-check ## Start all services
 	@echo "$(BLUE)Starting Loomio stack...$(NC)"
-	@docker compose up -d
+	@set -a; . .env; set +a; \
+	if grep -q "RAILS_ENV=production" .env 2>/dev/null; then \
+		echo "$(YELLOW)Production Mode: Using RAM mode for database and Redis$(NC)"; \
+		docker compose -f docker-compose.yml -f docker-compose.ram.yml up -d; \
+		echo "$(BLUE)Initializing RAM database from Google Drive...$(NC)"; \
+		./scripts/init-ram.sh; \
+	else \
+		echo "$(BLUE)Development Mode: Using disk-based storage$(NC)"; \
+		docker compose up -d; \
+	fi
 	@echo "$(GREEN)✓ Loomio stack started!$(NC)"
 	@echo ""
-	@echo "$(BLUE)Access Loomio at:$(NC)"
-	@echo "  Web Interface:  http://$(shell hostname -I | awk '{print $$1}'):3000"
+	@set -a; . .env; set +a; \
+	if grep -q "RAILS_ENV=production" .env 2>/dev/null; then \
+		echo "$(YELLOW)⚠ RAM Mode Active (Production):$(NC)"; \
+		echo "  - Database and Redis in RAM"; \
+		echo "  - Backups in RAM → Google Drive"; \
+		echo "  - Monitor usage: make ram-usage"; \
+		echo ""; \
+		echo "$(BLUE)Access Loomio at:$(NC)"; \
+		echo "  Web Interface:  https://$$CANONICAL_HOST"; \
+	else \
+		echo "$(BLUE)Access Loomio at:$(NC)"; \
+		echo "  Web Interface:  http://localhost:3000"; \
+		echo "  Adminer:        http://localhost:8081"; \
+	fi
 	@echo "  Netdata:        http://$(shell hostname -I | awk '{print $$1}'):19999"
-	@echo "  Adminer:        http://$(shell hostname -I | awk '{print $$1}'):8081"
 	@echo ""
 	@echo "$(YELLOW)View logs: make logs$(NC)"
 
 stop: ## Stop all services
+	@set -a; . .env 2>/dev/null; set +a; \
+	if grep -q "RAILS_ENV=production" .env 2>/dev/null; then \
+		echo "$(YELLOW)⚠ Production/RAM Mode: Creating backup before stopping...$(NC)"; \
+		$(MAKE) db-backup; \
+	fi
 	@echo "$(BLUE)Stopping Loomio stack...$(NC)"
 	@docker compose stop
 	@echo "$(GREEN)✓ Services stopped$(NC)"
 
 restart: ## Restart all services
-	@echo "$(BLUE)Restarting Loomio stack...$(NC)"
-	@docker compose restart
+	@set -a; . .env 2>/dev/null; set +a; \
+	if grep -q "RAILS_ENV=production" .env 2>/dev/null; then \
+		echo "$(YELLOW)⚠ Production/RAM Mode: Creating backup before restart...$(NC)"; \
+		$(MAKE) db-backup; \
+		echo "$(BLUE)Restarting with RAM mode...$(NC)"; \
+		docker compose -f docker-compose.yml -f docker-compose.ram.yml restart; \
+		echo "$(BLUE)Restoring database from Google Drive...$(NC)"; \
+		./scripts/init-ram.sh; \
+	else \
+		echo "$(BLUE)Restarting Loomio stack...$(NC)"; \
+		docker compose restart; \
+	fi
 	@echo "$(GREEN)✓ Services restarted$(NC)"
 
 down: ## Stop and remove all containers
+	@set -a; . .env 2>/dev/null; set +a; \
+	if grep -q "RAILS_ENV=production" .env 2>/dev/null; then \
+		echo "$(YELLOW)⚠ Production/RAM Mode: All data in RAM will be LOST!$(NC)"; \
+		echo "$(YELLOW)Creating final backup...$(NC)"; \
+		$(MAKE) db-backup || true; \
+	fi
 	@echo "$(RED)Stopping and removing all containers...$(NC)"
 	@docker compose down
 	@echo "$(GREEN)✓ Containers removed$(NC)"
@@ -176,103 +329,157 @@ logs: ## Show logs (Usage: make logs [SERVICE=app])
 		docker compose logs -f; \
 	fi
 
+##@ Monitoring
+
+ram-usage: ## Show RAM usage for database and Redis (useful in RAM mode)
+	@echo "$(BLUE)RAM Usage (Database & Redis):$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Database:$(NC)"
+	@docker compose exec db du -sh /var/lib/postgresql/data 2>/dev/null || echo "  Database not running"
+	@echo ""
+	@echo "$(YELLOW)Redis:$(NC)"
+	@docker compose exec redis du -sh /data 2>/dev/null || echo "  Redis not running"
+	@echo ""
+	@echo "$(BLUE)System Memory:$(NC)"
+	@free -h | grep -E '(Mem|Swap)'
+
+ram-stats: ## Show live resource stats for all containers (Ctrl+C to exit)
+	@echo "$(BLUE)Live Container Stats (RAM, CPU, Network)$(NC)"
+	@echo "$(YELLOW)Press Ctrl+C to exit$(NC)"
+	@echo ""
+	@docker stats
+
 ##@ Backup & Restore
 
-backup: check-env ## Create backup now
-	@echo "$(BLUE)Creating backup...$(NC)"
-	@mkdir -p backups
+db-backup: check-env ## Create encrypted database backup (./data/db_backup/)
+	@echo "$(BLUE)Creating database backup...$(NC)"
+	@mkdir -p data/db_backup
 	@docker compose exec backup python3 /app/backup.py
-	@echo "$(GREEN)✓ Backup complete!$(NC)"
+	@echo "$(GREEN)✓ Database backup complete!$(NC)"
 	@echo ""
 	@$(MAKE) list-backups
 
-list-backups: ## List all backups
-	@echo "$(BLUE)Available backups:$(NC)"
-	@ls -lh backups/ 2>/dev/null || echo "No backups found"
+sync-data: check-env ## Sync all data (DB backups + uploads) to Google Drive
+	@echo "$(BLUE)Syncing data to Google Drive...$(NC)"
+	@docker compose exec app bash /scripts/sync-data.sh
 
-restore: ## Restore database from backup
-	@echo "$(YELLOW)⚠ This will restore your database from a backup$(NC)"
+restore-db: check-env ## Download and restore latest database backup from Google Drive
 	@./scripts/restore-db.sh
+
+restore-uploads: check-env ## Download and restore all uploads from Google Drive
+	@./scripts/restore-uploads.sh
+
+list-backups: ## List all local database backups
+	@echo "$(BLUE)Database Backups:$(NC)"
+	@ls -lh data/db_backup/*.sql* 2>/dev/null || echo "No backups found"
 
 ##@ User Management
 
-auto-create-admin: check-env ## Auto-create admin from .env variables
-	@set -a; . .env; set +a; \
-	if [ -n "$$LOOMIO_ADMIN_EMAIL" ] && [ -n "$$LOOMIO_ADMIN_PASSWORD" ]; then \
-		echo "$(BLUE)Creating admin user from .env variables...$(NC)"; \
-		ADMIN_NAME="$${LOOMIO_ADMIN_NAME:-Admin User}"; \
-		docker compose run --rm app rails runner " \
-			begin \
-				existing_user = User.find_by(email: '$$LOOMIO_ADMIN_EMAIL'); \
-				if existing_user \
-					puts '✓ Admin user already exists: $$LOOMIO_ADMIN_EMAIL'; \
-					if !existing_user.is_admin \
-						existing_user.update(is_admin: true); \
-						puts '✓ Promoted existing user to admin'; \
-					end \
-				else \
-					user = User.create!( \
-						email: '$$LOOMIO_ADMIN_EMAIL', \
-						name: '$$ADMIN_NAME', \
-						password: '$$LOOMIO_ADMIN_PASSWORD', \
-						password_confirmation: '$$LOOMIO_ADMIN_PASSWORD', \
-						email_verified: true, \
-						is_admin: true \
-					); \
-					puts '✓ Created admin user: ' + user.email; \
-				end \
-			rescue => e \
-				puts '✗ Failed to create admin user: ' + e.message; \
-				exit 1; \
-			end \
-		" && echo "$(GREEN)✓ Admin user setup complete$(NC)" || echo "$(RED)✗ Admin user setup failed$(NC)"; \
-	else \
-		echo "$(YELLOW)No admin credentials in .env (LOOMIO_ADMIN_EMAIL/LOOMIO_ADMIN_PASSWORD)$(NC)"; \
-		echo "Create admin with: make create-admin"; \
-	fi
-
-create-admin: check-env ## Create admin user (interactive)
-	@echo "$(BLUE)Create Admin User$(NC)"
+add-user: check-env ## Create a new user with auto-generated password
+	@echo "$(BLUE)═══════════════════════════════════════$(NC)"
+	@echo "$(BLUE)         Create Loomio User            $(NC)"
+	@echo "$(BLUE)═══════════════════════════════════════$(NC)"
 	@echo ""
 	@read -p "Email address: " email; \
-	read -p "Username: " username; \
-	read -sp "Password: " password; \
-	echo ""; \
-	read -sp "Confirm password: " password2; \
-	echo ""; \
-	if [ "$$password" != "$$password2" ]; then \
-		echo "$(RED)✗ Passwords don't match!$(NC)"; \
+	read -p "Display name: " name; \
+	if [ -z "$$email" ] || [ -z "$$name" ]; then \
+		echo "$(RED)✗ Email and name are required!$(NC)"; \
 		exit 1; \
 	fi; \
-	if [ -z "$$email" ] || [ -z "$$username" ] || [ -z "$$password" ]; then \
-		echo "$(RED)✗ All fields are required!$(NC)"; \
+	if ! echo "$$email" | grep -qE '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$$'; then \
+		echo "$(RED)✗ Invalid email format!$(NC)"; \
 		exit 1; \
 	fi; \
-	echo "Creating admin user..."; \
+	PASSWORD=$$(openssl rand -base64 18 | tr -d '/+=' | head -c 16); \
+	echo ""; \
+	echo "$(BLUE)Creating user...$(NC)"; \
 	docker compose run --rm app rails runner " \
-		user = User.create!( \
-			email: '$$email', \
-			name: '$$username', \
-			password: '$$password', \
-			password_confirmation: '$$password', \
-			email_verified: true, \
-			is_admin: true \
-		); \
-		puts 'Admin user created: ' + user.email \
-	" && echo "$(GREEN)✓ Admin user created!$(NC)" || echo "$(RED)✗ Failed to create user$(NC)"
-
-promote-user: check-env ## Promote user to admin by email
-	@read -p "Email address to promote: " email; \
-	docker compose run --rm app rails runner " \
-		user = User.find_by(email: '$$email'); \
-		if user \
-			user.update(is_admin: true); \
-			puts 'User promoted to admin: ' + user.email; \
-		else \
-			puts 'User not found: $$email'; \
+		begin \
+			user = User.create!( \
+				email: '$$email', \
+				name: '$$name', \
+				password: '$$PASSWORD', \
+				password_confirmation: '$$PASSWORD', \
+				email_verified: true, \
+				is_admin: false \
+			); \
+			puts '✓ User created successfully'; \
+		rescue => e \
+			puts '✗ Error: ' + e.message; \
 			exit 1; \
 		end \
-	" && echo "$(GREEN)✓ User promoted to admin$(NC)" || echo "$(RED)✗ User not found$(NC)"
+	" && { \
+		echo ""; \
+		echo "$(GREEN)═══════════════════════════════════════$(NC)"; \
+		echo "$(GREEN)   ✓ User Created Successfully!        $(NC)"; \
+		echo "$(GREEN)═══════════════════════════════════════$(NC)"; \
+		echo ""; \
+		echo "$(YELLOW)Credentials:$(NC)"; \
+		echo "  Email:    $$email"; \
+		echo "  Name:     $$name"; \
+		echo "  Password: $$PASSWORD"; \
+		echo ""; \
+		echo "$(YELLOW)⚠ IMPORTANT: Save this password securely!$(NC)"; \
+		echo "$(YELLOW)   It will not be displayed again.$(NC)"; \
+		echo ""; \
+	} || { \
+		echo ""; \
+		echo "$(RED)✗ Failed to create user$(NC)"; \
+		exit 1; \
+	}
+
+add-admin: check-env ## Create an admin user with auto-generated password
+	@echo "$(BLUE)═══════════════════════════════════════$(NC)"
+	@echo "$(BLUE)        Create Loomio Admin User        $(NC)"
+	@echo "$(BLUE)═══════════════════════════════════════$(NC)"
+	@echo ""
+	@read -p "Email address: " email; \
+	read -p "Display name: " name; \
+	if [ -z "$$email" ] || [ -z "$$name" ]; then \
+		echo "$(RED)✗ Email and name are required!$(NC)"; \
+		exit 1; \
+	fi; \
+	if ! echo "$$email" | grep -qE '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$$'; then \
+		echo "$(RED)✗ Invalid email format!$(NC)"; \
+		exit 1; \
+	fi; \
+	PASSWORD=$$(openssl rand -base64 18 | tr -d '/+=' | head -c 16); \
+	echo ""; \
+	echo "$(BLUE)Creating admin user...$(NC)"; \
+	docker compose run --rm app rails runner " \
+		begin \
+			user = User.create!( \
+				email: '$$email', \
+				name: '$$name', \
+				password: '$$PASSWORD', \
+				password_confirmation: '$$PASSWORD', \
+				email_verified: true, \
+				is_admin: true \
+			); \
+			puts '✓ Admin user created successfully'; \
+		rescue => e \
+			puts '✗ Error: ' + e.message; \
+			exit 1; \
+		end \
+	" && { \
+		echo ""; \
+		echo "$(GREEN)═══════════════════════════════════════$(NC)"; \
+		echo "$(GREEN)  ✓ Admin User Created Successfully!  $(NC)"; \
+		echo "$(GREEN)═══════════════════════════════════════$(NC)"; \
+		echo ""; \
+		echo "$(YELLOW)Admin Credentials:$(NC)"; \
+		echo "  Email:    $$email"; \
+		echo "  Name:     $$name"; \
+		echo "  Password: $$PASSWORD"; \
+		echo ""; \
+		echo "$(YELLOW)⚠ IMPORTANT: Save this password securely!$(NC)"; \
+		echo "$(YELLOW)   It will not be displayed again.$(NC)"; \
+		echo ""; \
+	} || { \
+		echo ""; \
+		echo "$(RED)✗ Failed to create admin user$(NC)"; \
+		exit 1; \
+	}
 
 list-users: check-env ## List all users
 	@echo "$(BLUE)Loomio Users:$(NC)"
@@ -292,7 +499,9 @@ rails-console: check-env ## Open Rails console
 
 db-console: check-env ## Open PostgreSQL console
 	@echo "$(BLUE)Opening database console...$(NC)"
-	@docker compose exec db psql -U loomio -d loomio_production
+	@set -a; . .env; set +a; \
+	DB_NAME=$${POSTGRES_DB:-loomio_production}; \
+	docker compose exec db psql -U loomio -d $$DB_NAME
 
 ##@ Maintenance
 
@@ -313,8 +522,12 @@ health: ## Check health of all services
 
 ##@ Systemd Integration
 
-enable-autostart: ## Enable automatic startup on boot
+enable-autostart: check-env ## Enable automatic startup on boot
 	@echo "$(BLUE)Enabling autostart...$(NC)"
+	@if grep -q "RAILS_ENV=production" .env 2>/dev/null; then \
+		echo "$(YELLOW)⚠ Production environment detected - running preflight checks...$(NC)"; \
+		$(MAKE) preflight-check || exit 1; \
+	fi
 	@sudo cp loomio.service /etc/systemd/system/
 	@sudo cp loomio-watchdog.service /etc/systemd/system/
 	@sudo cp loomio-watchdog.timer /etc/systemd/system/
@@ -346,79 +559,16 @@ info: ## Show system and service information
 	@echo "$(BLUE)Services:$(NC)"
 	@docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
 	@echo ""
-	@echo "$(BLUE)Service URLs:$(NC)"
-	@echo "  Loomio:         http://$(shell hostname -I | awk '{print $$1}'):3000"
+	@set -a; . .env 2>/dev/null; set +a; \
+	if grep -q "RAILS_ENV=production" .env 2>/dev/null; then \
+		echo "$(BLUE)Service URLs:$(NC)"; \
+		echo "  Loomio:         https://$$CANONICAL_HOST"; \
+	else \
+		echo "$(BLUE)Service URLs:$(NC)"; \
+		echo "  Loomio:         http://$(shell hostname -I | awk '{print $$1}'):3000"; \
+		echo "  Adminer:        http://$(shell hostname -I | awk '{print $$1}'):8081"; \
+	fi
 	@echo "  Netdata:        http://$(shell hostname -I | awk '{print $$1}'):19999"
-	@echo "  Adminer:        http://$(shell hostname -I | awk '{print $$1}'):8081"
 	@echo ""
 	@echo "$(BLUE)Container Versions:$(NC)"
 	@docker compose images
-
-##@ Quick Start
-
-first-time-setup: ## Complete first-time setup (all steps)
-	@echo "$(BLUE)╔════════════════════════════════════════════════╗$(NC)"
-	@echo "$(BLUE)║   Loomio Pi Stack - First Time Setup          ║$(NC)"
-	@echo "$(BLUE)╚════════════════════════════════════════════════╝$(NC)"
-	@echo ""
-	@echo "$(BLUE)Step 1/6: Installing dependencies...$(NC)"
-	@$(MAKE) install
-	@echo ""
-	@echo "$(BLUE)Step 2/6: Creating .env and generating secrets...$(NC)"
-	@$(MAKE) setup
-	@echo ""
-	@echo "$(YELLOW)╔════════════════════════════════════════════════╗$(NC)"
-	@echo "$(YELLOW)║   IMPORTANT: Configure your .env file         ║$(NC)"
-	@echo "$(YELLOW)╚════════════════════════════════════════════════╝$(NC)"
-	@echo ""
-	@echo "$(YELLOW)Required configuration:$(NC)"
-	@echo "  • CANONICAL_HOST - Your domain (e.g., loomio.example.com)"
-	@echo "  • SUPPORT_EMAIL - Support email address"
-	@echo "  • SMTP_SERVER, SMTP_USERNAME, SMTP_PASSWORD - Email settings"
-	@echo ""
-	@echo "$(YELLOW)Optional (for auto admin creation):$(NC)"
-	@echo "  • LOOMIO_ADMIN_EMAIL - Admin email"
-	@echo "  • LOOMIO_ADMIN_PASSWORD - Admin password"
-	@echo "  • LOOMIO_ADMIN_NAME - Admin name"
-	@echo ""
-	@echo "$(BLUE)Edit with: nano .env$(NC)"
-	@echo ""
-	@read -p "Press Enter when you're done editing .env..." dummy; \
-	echo ""
-	@echo "$(BLUE)Step 3/6: Initializing database...$(NC)"
-	@$(MAKE) init
-	@echo ""
-	@echo "$(BLUE)Step 4/6: Starting all services...$(NC)"
-	@$(MAKE) start
-	@echo ""
-	@echo "$(BLUE)Step 5/6: Enabling auto-start on boot...$(NC)"
-	@$(MAKE) enable-autostart || echo "$(YELLOW)⚠ Skipped autostart (requires sudo)$(NC)"
-	@echo ""
-	@echo "$(BLUE)Step 6/6: Creating admin user...$(NC)"
-	@$(MAKE) auto-create-admin
-	@echo ""
-	@echo "$(GREEN)╔════════════════════════════════════════════════╗$(NC)"
-	@echo "$(GREEN)║   Loomio Pi Stack Setup Complete! 🎉          ║$(NC)"
-	@echo "$(GREEN)╚════════════════════════════════════════════════╝$(NC)"
-	@echo ""
-	@echo "$(BLUE)Access Loomio:$(NC)"
-	@echo "  Web Interface: http://$(shell hostname -I | awk '{print $$1}'):3000"
-	@echo "  Netdata:       http://$(shell hostname -I | awk '{print $$1}'):19999"
-	@echo "  Adminer:       http://$(shell hostname -I | awk '{print $$1}'):8081"
-	@echo ""
-	@set -a; . .env 2>/dev/null; set +a; \
-	if [ -n "$$LOOMIO_ADMIN_EMAIL" ]; then \
-		echo "$(GREEN)✓ Admin user: $$LOOMIO_ADMIN_EMAIL$(NC)"; \
-	else \
-		echo "$(YELLOW)Next steps to create admin:$(NC)"; \
-		echo "  1. Open the web interface"; \
-		echo "  2. Sign up for an account"; \
-		echo "  3. Run: make promote-user"; \
-	fi
-	@echo ""
-	@echo "$(YELLOW)Useful commands:$(NC)"
-	@echo "  make logs          - View logs"
-	@echo "  make status        - Check service status"
-	@echo "  make backup        - Create backup"
-	@echo "  make list-users    - List all users"
-	@echo "  make help          - Show all commands"
