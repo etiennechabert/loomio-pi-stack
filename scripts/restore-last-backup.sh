@@ -168,14 +168,14 @@ log "${GREEN}✓ Found backup: $(basename "$LATEST_BACKUP")${NC}"
 log "${BLUE}Decrypting backup...${NC}"
 
 if [ "$BACKUP_LOCATION" = "container" ]; then
-    # Decrypt inside container
-    docker compose exec -T backup bash -c "
+    # Decrypt inside container and capture only the file path
+    DECRYPTED_FILE=$(docker compose exec -T backup bash -c "
         set -e
 
         LATEST_BACKUP=\"\$(ls -t ${BACKUP_DIR}/loomio_backup_*.sql.enc 2>/dev/null | head -1)\"
 
         if [ -z \"\$LATEST_BACKUP\" ]; then
-            echo 'ERROR: No backup found'
+            echo 'ERROR: No backup found' >&2
             exit 1
         fi
 
@@ -204,23 +204,20 @@ try:
     with open('\$DECRYPTED_FILE', 'wb') as f:
         f.write(decrypted_data)
 
-    print('✓ Decrypted successfully')
+    print('✓ Decrypted successfully', file=sys.stderr)
 except Exception as e:
     print(f'✗ Decryption failed: {e}', file=sys.stderr)
     sys.exit(1)
-\"
+\" >&2
 
-        # Output the decrypted file path
+        # Output ONLY the decrypted file path to stdout
         echo \"\$DECRYPTED_FILE\"
-    "
+    " | tr -d '\r\n')
 
-    if [ $? -ne 0 ]; then
+    if [ $? -ne 0 ] || [ -z "$DECRYPTED_FILE" ]; then
         log "${RED}✗ Decryption failed${NC}"
         exit 1
     fi
-
-    # Get the decrypted file path from container output
-    DECRYPTED_FILE=$(docker compose exec -T backup bash -c "ls -t ${BACKUP_DIR}/loomio_backup_*.sql 2>/dev/null | head -1" | tr -d '\r')
 else
     # Decrypt on host
     DECRYPTED_FILE="${LATEST_BACKUP%.enc}"
