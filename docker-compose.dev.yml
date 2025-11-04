@@ -1,0 +1,25 @@
+# Docker Compose Override for Development Mode
+# Use with: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+#
+# Development mode uses persistent Docker volumes for easy local development
+
+services:
+  # PostgreSQL with persistent storage
+  db:
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+  # Redis with persistent storage
+  redis:
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+
+  # Backup service with disk-based backups
+  backup:
+    volumes:
+      - ./data/db_backup:/backups
+      - db-data:/db-data:ro
+      - ./data/uploads/storage:/loomio/storage:ro
+      - ./data/uploads/system:/loomio/public/system:ro
+      - ./data/uploads/files:/loomio/public/files:ro

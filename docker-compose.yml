@@ -8,9 +8,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-loomio_production}
       POSTGRES_USER: ${POSTGRES_USER:-loomio}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    volumes:
-      - db-data:/var/lib/postgresql/data
-      - ./backups/db:/backups
+    # Volumes moved to mode-specific overlays (dev uses volumes, ram uses tmpfs)
     networks:
       - loomio-network
     healthcheck:
@@ -24,9 +22,7 @@ services:
     image: redis:7-alpine
     container_name: loomio-redis
     restart: unless-stopped
-    command: redis-server --appendonly yes
-    volumes:
-      - redis-data:/data
+    # Command and volumes moved to mode-specific overlays
     networks:
       - loomio-network
     healthcheck:

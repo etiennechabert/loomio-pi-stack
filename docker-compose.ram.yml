@@ -15,9 +15,6 @@ services:
       # No size limit - defaults to 50% of system RAM (~8GB)
       # Monitor with: docker stats db
       - /var/lib/postgresql/data:mode=0700
-    volumes:
-      # Keep backups mount but remove data mount (which is now tmpfs)
-      - ./backups/db:/backups
 
   # Redis in RAM (no persistence)
   redis:
@@ -27,7 +24,6 @@ services:
       # Store Redis data in RAM
       # No size limit - defaults to 50% of system RAM
       - /data:mode=0755
-    # Remove redis-data volume entirely
 
   # Backup service with RAM-only backups
   backup:
