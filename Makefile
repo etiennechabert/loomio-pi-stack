@@ -10,6 +10,13 @@ YELLOW := \033[1;33m
 RED := \033[0;31m
 NC := \033[0m # No Color
 
+# Cross-platform IP detection
+HOST_IP := $(shell if [ "$$(uname)" = "Darwin" ]; then \
+	ipconfig getifaddr en0 2>/dev/null || echo "localhost"; \
+else \
+	hostname -I 2>/dev/null | awk '{print $$1}' || echo "localhost"; \
+fi)
+
 ##@ General
 
 help: ## Display this help message
@@ -278,7 +285,7 @@ start: check-env preflight-check ## Start all services
 		echo "  Web Interface:  http://localhost:3000"; \
 		echo "  Adminer:        http://localhost:8081"; \
 	fi
-	@echo "  Netdata:        http://$(shell hostname -I | awk '{print $$1}'):19999"
+	@echo "  Netdata:        http://$(HOST_IP):19999"
 	@echo ""
 	@echo "$(YELLOW)View logs: make logs$(NC)"
 
@@ -554,7 +561,7 @@ info: ## Show system and service information
 	@echo ""
 	@echo "$(BLUE)System:$(NC)"
 	@echo "  Hostname:       $(shell hostname)"
-	@echo "  IP Address:     $(shell hostname -I | awk '{print $$1}')"
+	@echo "  IP Address:     $(HOST_IP)"
 	@echo ""
 	@echo "$(BLUE)Services:$(NC)"
 	@docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
@@ -565,10 +572,10 @@ info: ## Show system and service information
 		echo "  Loomio:         https://$$CANONICAL_HOST"; \
 	else \
 		echo "$(BLUE)Service URLs:$(NC)"; \
-		echo "  Loomio:         http://$(shell hostname -I | awk '{print $$1}'):3000"; \
-		echo "  Adminer:        http://$(shell hostname -I | awk '{print $$1}'):8081"; \
+		echo "  Loomio:         http://$(HOST_IP):3000"; \
+		echo "  Adminer:        http://$(HOST_IP):8081"; \
 	fi
-	@echo "  Netdata:        http://$(shell hostname -I | awk '{print $$1}'):19999"
+	@echo "  Netdata:        http://$(HOST_IP):19999"
 	@echo ""
 	@echo "$(BLUE)Container Versions:$(NC)"
 	@docker compose images
