@@ -53,7 +53,7 @@ fi
 
 # Check Google Drive configuration
 SHOULD_DOWNLOAD_FROM_GDRIVE=false
-if [ "${GDRIVE_ENABLED}" = "true" ] && [ -n "${GDRIVE_CREDENTIALS}" ] && [ -n "${GDRIVE_FOLDER_ID}" ]; then
+if [ "${GDRIVE_ENABLED}" = "true" ] && [ -n "${GDRIVE_TOKEN}" ] && [ -n "${GDRIVE_FOLDER_ID}" ]; then
     SHOULD_DOWNLOAD_FROM_GDRIVE=true
 fi
 
@@ -93,7 +93,7 @@ if [ "$SHOULD_DOWNLOAD_FROM_GDRIVE" = true ]; then
 [gdrive]
 type = drive
 scope = drive
-service_account_credentials = ${GDRIVE_CREDENTIALS}
+token = ${GDRIVE_TOKEN}
 root_folder_id = ${GDRIVE_FOLDER_ID}
 RCLONE_EOF
 
@@ -129,7 +129,7 @@ RCLONE_EOF
 [gdrive]
 type = drive
 scope = drive
-service_account_credentials = ${GDRIVE_CREDENTIALS}
+token = ${GDRIVE_TOKEN}
 root_folder_id = ${GDRIVE_FOLDER_ID}
 EOF
 

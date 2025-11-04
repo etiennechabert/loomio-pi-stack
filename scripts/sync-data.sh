@@ -26,8 +26,8 @@ if [ "${GDRIVE_ENABLED}" != "true" ]; then
 fi
 
 # Check required variables
-if [ -z "${GDRIVE_CREDENTIALS}" ] || [ -z "${GDRIVE_FOLDER_ID}" ]; then
-    log "${RED}✗ GDRIVE_CREDENTIALS or GDRIVE_FOLDER_ID not set${NC}"
+if [ -z "${GDRIVE_TOKEN}" ] || [ -z "${GDRIVE_FOLDER_ID}" ]; then
+    log "${RED}✗ GDRIVE_TOKEN or GDRIVE_FOLDER_ID not set${NC}"
     log "${YELLOW}Configure Google Drive settings in .env to enable sync${NC}"
     exit 1
 fi
@@ -44,7 +44,7 @@ cat > "$RCLONE_CONFIG_DIR/rclone.conf" << EOF
 [gdrive]
 type = drive
 scope = drive
-service_account_credentials = ${GDRIVE_CREDENTIALS}
+token = ${GDRIVE_TOKEN}
 root_folder_id = ${GDRIVE_FOLDER_ID}
 EOF
 
