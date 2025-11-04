@@ -46,8 +46,8 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-loomio}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-loomio_production}
       REDIS_URL: redis://redis:6379
-      RAILS_ENV: development
-      RACK_ENV: development
+      RAILS_ENV: ${RAILS_ENV:-development}
+      RACK_ENV: ${RACK_ENV:-development}
     volumes:
       - ./data/uploads/system:/loomio/public/system
       - ./data/uploads/storage:/loomio/storage
@@ -83,8 +83,8 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-loomio}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-loomio_production}
       REDIS_URL: redis://redis:6379
-      RAILS_ENV: development
-      RACK_ENV: development
+      RAILS_ENV: ${RAILS_ENV:-development}
+      RACK_ENV: ${RACK_ENV:-development}
       TASK: worker
     command: bundle exec sidekiq
     volumes:
