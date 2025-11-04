@@ -382,7 +382,7 @@ list-backups: ## List all local database backups
 
 ##@ User Management
 
-add-user: check-env ## Create a new user with auto-generated password
+add-user: check-env ## Create a new user and send password setup email
 	@echo "$(BLUE)═══════════════════════════════════════$(NC)"
 	@echo "$(BLUE)         Create Loomio User            $(NC)"
 	@echo "$(BLUE)═══════════════════════════════════════$(NC)"
@@ -397,37 +397,23 @@ add-user: check-env ## Create a new user with auto-generated password
 		echo "$(RED)✗ Invalid email format!$(NC)"; \
 		exit 1; \
 	fi; \
-	PASSWORD=$$(openssl rand -base64 18 | tr -d '/+=' | head -c 16); \
 	echo ""; \
-	echo "$(BLUE)Creating user...$(NC)"; \
-	docker compose run --rm app rails runner " \
-		begin \
-			user = User.create!( \
-				email: '$$email', \
-				name: '$$name', \
-				password: '$$PASSWORD', \
-				password_confirmation: '$$PASSWORD', \
-				email_verified: true, \
-				is_admin: false \
-			); \
-			puts '✓ User created successfully'; \
-		rescue => e \
-			puts '✗ Error: ' + e.message; \
-			exit 1; \
-		end \
-	" && { \
+	echo "$(BLUE)Creating user and sending password setup email...$(NC)"; \
+	docker compose run --rm app rails runner "begin; temp_pass = SecureRandom.hex(32); user = User.create!(email: '$$email', name: '$$name', password: temp_pass, password_confirmation: temp_pass, email_verified: true, is_admin: false); token = user.send_reset_password_instructions; if token; puts '✓ User created successfully'; puts '✓ Password setup email sent'; else; puts '⚠ User created but email failed - check SMTP configuration'; end; rescue => e; puts '✗ Error: ' + e.message; exit 1; end" && { \
 		echo ""; \
 		echo "$(GREEN)═══════════════════════════════════════$(NC)"; \
 		echo "$(GREEN)   ✓ User Created Successfully!        $(NC)"; \
 		echo "$(GREEN)═══════════════════════════════════════$(NC)"; \
 		echo ""; \
-		echo "$(YELLOW)Credentials:$(NC)"; \
-		echo "  Email:    $$email"; \
-		echo "  Name:     $$name"; \
-		echo "  Password: $$PASSWORD"; \
+		echo "$(GREEN)✓ Password setup email sent to: $$email$(NC)"; \
 		echo ""; \
-		echo "$(YELLOW)⚠ IMPORTANT: Save this password securely!$(NC)"; \
-		echo "$(YELLOW)   It will not be displayed again.$(NC)"; \
+		echo "$(YELLOW)Next steps:$(NC)"; \
+		echo "  1. User checks email inbox"; \
+		echo "  2. User clicks 'Set Password' link"; \
+		echo "  3. User creates their own password"; \
+		echo "  4. User can now log in"; \
+		echo ""; \
+		echo "$(YELLOW)Note: If email not received, check SMTP configuration$(NC)"; \
 		echo ""; \
 	} || { \
 		echo ""; \
@@ -435,7 +421,7 @@ add-user: check-env ## Create a new user with auto-generated password
 		exit 1; \
 	}
 
-add-admin: check-env ## Create an admin user with auto-generated password
+add-admin: check-env ## Create an admin user with password reset link
 	@echo "$(BLUE)═══════════════════════════════════════$(NC)"
 	@echo "$(BLUE)        Create Loomio Admin User        $(NC)"
 	@echo "$(BLUE)═══════════════════════════════════════$(NC)"
@@ -450,53 +436,40 @@ add-admin: check-env ## Create an admin user with auto-generated password
 		echo "$(RED)✗ Invalid email format!$(NC)"; \
 		exit 1; \
 	fi; \
-	PASSWORD=$$(openssl rand -base64 18 | tr -d '/+=' | head -c 16); \
 	echo ""; \
-	echo "$(BLUE)Creating admin user...$(NC)"; \
-	docker compose run --rm app rails runner " \
-		begin \
-			user = User.create!( \
-				email: '$$email', \
-				name: '$$name', \
-				password: '$$PASSWORD', \
-				password_confirmation: '$$PASSWORD', \
-				email_verified: true, \
-				is_admin: true \
-			); \
-			puts '✓ Admin user created successfully'; \
-		rescue => e \
-			puts '✗ Error: ' + e.message; \
-			exit 1; \
-		end \
-	" && { \
+	echo "$(BLUE)Creating admin user and generating password reset link...$(NC)"; \
+	set -a; . ./.env; set +a; \
+	CANONICAL_HOST=$${CANONICAL_HOST:-localhost:3000}; \
+	reset_token=$$(docker compose run --rm app rails runner "temp_pass = SecureRandom.hex(32); user = User.create!(email: '$$email', name: '$$name', password: temp_pass, password_confirmation: temp_pass, email_verified: true, is_admin: true); raw_token, hashed_token = Devise.token_generator.generate(User, :reset_password_token); user.reset_password_token = hashed_token; user.reset_password_sent_at = Time.now; user.save!(validate: false); puts raw_token" 2>&1 | grep -v "warning" | tail -1); \
+	if echo "$$reset_token" | grep -qv "ERROR"; then \
+		reset_url="http://$$CANONICAL_HOST/users/password/edit?reset_password_token=$$reset_token"; \
 		echo ""; \
 		echo "$(GREEN)═══════════════════════════════════════$(NC)"; \
 		echo "$(GREEN)  ✓ Admin User Created Successfully!  $(NC)"; \
 		echo "$(GREEN)═══════════════════════════════════════$(NC)"; \
 		echo ""; \
-		echo "$(YELLOW)Admin Credentials:$(NC)"; \
-		echo "  Email:    $$email"; \
-		echo "  Name:     $$name"; \
-		echo "  Password: $$PASSWORD"; \
+		echo "$(GREEN)Email: $$email$(NC)"; \
 		echo ""; \
-		echo "$(YELLOW)⚠ IMPORTANT: Save this password securely!$(NC)"; \
-		echo "$(YELLOW)   It will not be displayed again.$(NC)"; \
+		echo "$(YELLOW)🔗 Password Setup Link:$(NC)"; \
+		echo "$(CYAN)$$reset_url$(NC)"; \
 		echo ""; \
-	} || { \
+		echo "$(YELLOW)⚠️  IMPORTANT:$(NC)"; \
+		echo "$(YELLOW)   1. Open this link in your browser$(NC)"; \
+		echo "$(YELLOW)   2. Set your own secure password$(NC)"; \
+		echo "$(YELLOW)   3. Link expires in 6 hours$(NC)"; \
+		echo ""; \
+		echo "$(YELLOW)💡 This link will only be shown once!$(NC)"; \
+		echo ""; \
+	else \
 		echo ""; \
 		echo "$(RED)✗ Failed to create admin user$(NC)"; \
+		echo "$$reset_token"; \
 		exit 1; \
-	}
+	fi
 
 list-users: check-env ## List all users
 	@echo "$(BLUE)Loomio Users:$(NC)"
-	@docker compose run --rm app rails runner " \
-		User.order(:created_at).each do |u| \
-			admin_label = u.is_admin ? ' [ADMIN]' : ''; \
-			verified = u.email_verified ? '✓' : '✗'; \
-			puts \"#{verified} #{u.email} - #{u.name}#{admin_label}\"; \
-		end \
-	"
+	@docker compose run --rm app rails runner "User.order(:created_at).each do |u|; admin_label = u.is_admin ? ' [ADMIN]' : ''; verified = u.email_verified ? '✓' : '✗'; puts \"#{verified} #{u.email} - #{u.name}#{admin_label}\"; end"
 
 ##@ Console Access
 
