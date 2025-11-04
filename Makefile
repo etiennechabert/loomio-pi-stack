@@ -399,30 +399,7 @@ add-user: check-env ## Create a new user and send password setup email
 	fi; \
 	echo ""; \
 	echo "$(BLUE)Creating user and sending password setup email...$(NC)"; \
-	docker compose run --rm app rails runner " \
-		begin \
-			# Create user with random password they won't use \
-			user = User.create!( \
-				email: '$$email', \
-				name: '$$name', \
-				password: SecureRandom.hex(32), \
-				password_confirmation: SecureRandom.hex(32), \
-				email_verified: true, \
-				is_admin: false \
-			); \
-			# Send password reset email \
-			token = user.send_reset_password_instructions; \
-			if token \
-				puts '✓ User created successfully'; \
-				puts '✓ Password setup email sent'; \
-			else \
-				puts '⚠ User created but email failed - check SMTP configuration'; \
-			end \
-		rescue => e \
-			puts '✗ Error: ' + e.message; \
-			exit 1; \
-		end \
-	" && { \
+	docker compose run --rm app rails runner "begin; temp_pass = SecureRandom.hex(32); user = User.create!(email: '$$email', name: '$$name', password: temp_pass, password_confirmation: temp_pass, email_verified: true, is_admin: false); token = user.send_reset_password_instructions; if token; puts '✓ User created successfully'; puts '✓ Password setup email sent'; else; puts '⚠ User created but email failed - check SMTP configuration'; end; rescue => e; puts '✗ Error: ' + e.message; exit 1; end" && { \
 		echo ""; \
 		echo "$(GREEN)═══════════════════════════════════════$(NC)"; \
 		echo "$(GREEN)   ✓ User Created Successfully!        $(NC)"; \
@@ -444,7 +421,7 @@ add-user: check-env ## Create a new user and send password setup email
 		exit 1; \
 	}
 
-add-admin: check-env ## Create an admin user and send password setup email
+add-admin: check-env ## Create an admin user with password displayed in console
 	@echo "$(BLUE)═══════════════════════════════════════$(NC)"
 	@echo "$(BLUE)        Create Loomio Admin User        $(NC)"
 	@echo "$(BLUE)═══════════════════════════════════════$(NC)"
@@ -460,45 +437,23 @@ add-admin: check-env ## Create an admin user and send password setup email
 		exit 1; \
 	fi; \
 	echo ""; \
-	echo "$(BLUE)Creating admin user and sending password setup email...$(NC)"; \
-	docker compose run --rm app rails runner " \
-		begin \
-			# Create admin user with random password they won't use \
-			user = User.create!( \
-				email: '$$email', \
-				name: '$$name', \
-				password: SecureRandom.hex(32), \
-				password_confirmation: SecureRandom.hex(32), \
-				email_verified: true, \
-				is_admin: true \
-			); \
-			# Send password reset email \
-			token = user.send_reset_password_instructions; \
-			if token \
-				puts '✓ Admin user created successfully'; \
-				puts '✓ Password setup email sent'; \
-			else \
-				puts '⚠ Admin user created but email failed - check SMTP configuration'; \
-			end \
-		rescue => e \
-			puts '✗ Error: ' + e.message; \
-			exit 1; \
-		end \
-	" && { \
+	echo "$(BLUE)Creating admin user...$(NC)"; \
+	password=$$(openssl rand -base64 16); \
+	docker compose run --rm app rails runner "begin; user = User.create!(email: '$$email', name: '$$name', password: '$$password', password_confirmation: '$$password', email_verified: true, is_admin: true); puts 'Admin user created: ' + user.email; rescue => e; puts '✗ Error: ' + e.message; exit 1; end" && { \
 		echo ""; \
 		echo "$(GREEN)═══════════════════════════════════════$(NC)"; \
 		echo "$(GREEN)  ✓ Admin User Created Successfully!  $(NC)"; \
 		echo "$(GREEN)═══════════════════════════════════════$(NC)"; \
 		echo ""; \
-		echo "$(GREEN)✓ Password setup email sent to: $$email$(NC)"; \
+		echo "$(GREEN)Email:    $$email$(NC)"; \
+		echo "$(GREEN)Password: $$password$(NC)"; \
+		echo ""; \
+		echo "$(YELLOW)⚠️  IMPORTANT: Save this password securely!$(NC)"; \
+		echo "$(YELLOW)   This password will not be shown again.$(NC)"; \
 		echo ""; \
 		echo "$(YELLOW)Next steps:$(NC)"; \
-		echo "  1. Admin checks email inbox"; \
-		echo "  2. Admin clicks 'Set Password' link"; \
-		echo "  3. Admin creates their own password"; \
-		echo "  4. Admin can now log in with admin privileges"; \
-		echo ""; \
-		echo "$(YELLOW)Note: If email not received, check SMTP configuration$(NC)"; \
+		echo "  1. Log in at http://localhost:3000"; \
+		echo "  2. Change password after first login (recommended)"; \
 		echo ""; \
 	} || { \
 		echo ""; \
@@ -508,13 +463,7 @@ add-admin: check-env ## Create an admin user and send password setup email
 
 list-users: check-env ## List all users
 	@echo "$(BLUE)Loomio Users:$(NC)"
-	@docker compose run --rm app rails runner " \
-		User.order(:created_at).each do |u| \
-			admin_label = u.is_admin ? ' [ADMIN]' : ''; \
-			verified = u.email_verified ? '✓' : '✗'; \
-			puts \"#{verified} #{u.email} - #{u.name}#{admin_label}\"; \
-		end \
-	"
+	@docker compose run --rm app rails runner "User.order(:created_at).each do |u|; admin_label = u.is_admin ? ' [ADMIN]' : ''; verified = u.email_verified ? '✓' : '✗'; puts \"#{verified} #{u.email} - #{u.name}#{admin_label}\"; end"
 
 ##@ Console Access
 

@@ -2,6 +2,29 @@
 
 Your Loomio instance is configured as a **private, invite-only community**. Public user registration is disabled - only administrators can create and invite users.
 
+## 🚀 Quick Start
+
+**For first-time setup:**
+
+1. **Create your first admin account:**
+   ```bash
+   make add-admin
+   ```
+   Enter an email (can be fake like `admin@localhost`) and name. Save the displayed password.
+
+2. **Log in to Loomio web interface** with the admin account
+
+3. **Invite users from the web:**
+   - Create a group
+   - Click "Invite" button
+   - Enter user email addresses
+   - Add a welcome message
+   - Click "Send invitations"
+
+That's it! Users receive emails with password setup instructions and security guidelines.
+
+---
+
 ## 🎯 Perfect Workflow
 
 This setup implements your ideal onboarding flow:
@@ -33,11 +56,46 @@ FEATURES_DISABLE_PUBLIC_THREADS=true
 
 ## User Onboarding Workflow
 
-### Step 1: Admin Creates User Account
+### 🌟 Recommended: Web-Based Invitation (Primary Method)
 
-Admins use the automated workflow that sends a password setup email:
+**This is the easiest and most user-friendly way to onboard users!**
 
-#### Method A: Makefile Command (Recommended)
+Loomio has built-in web-based user invitation that's perfect for day-to-day user onboarding:
+
+#### How to Invite Users from the Web Interface
+
+1. **Log in as an admin** to your Loomio instance
+2. **Navigate to a group** or create a new one
+3. **Click the "Invite" button** in the Members panel
+4. **Enter email addresses** of people you want to invite (one per line)
+   - Email addresses can be for existing users OR new users
+   - New user accounts are created automatically
+5. **Add an optional personal message** to include in the invitation
+6. **Click "Send invitations"**
+
+#### What Happens Automatically
+
+- ✅ Loomio creates user accounts for new email addresses
+- ✅ Adds users as members to the selected group
+- ✅ Sends invitation emails with your custom message
+- ✅ Includes password setup instructions with security guidelines
+- ✅ New users set their own secure passwords on first login
+
+#### Benefits
+
+- ✅ **No command-line access needed** - admins work from the web UI
+- ✅ **Context-aware** - users are immediately added to the right group
+- ✅ **Bulk invitations** - invite multiple users at once
+- ✅ **Personalized messages** - add context for why they're being invited
+- ✅ **Better UX** - intuitive interface for non-technical admins
+
+---
+
+### Alternative: Command-Line User Creation
+
+For initial setup, automation, or when you need to create users without adding them to a group yet:
+
+#### Method A: Makefile Command
 
 ```bash
 # Create regular user
@@ -45,13 +103,13 @@ make add-user
 # Prompts for: email and name
 # System automatically sends password setup email
 
-# Create admin user
+# Create admin user (displays password in console)
 make add-admin
 # Prompts for: email and name
-# System automatically sends password setup email
+# Displays password in console - no email sent
 ```
 
-**Output:**
+**Output for `make add-user`:**
 ```
 ✓ User Created Successfully!
 ✓ Password setup email sent to: user@example.com
@@ -65,13 +123,40 @@ Next steps:
 Note: If email not received, check SMTP configuration
 ```
 
+**Output for `make add-admin`:**
+```
+✓ Admin User Created Successfully!
+
+Email:    admin@example.com
+Password: Xy7$kP9mQ2nR8vL
+
+⚠️  IMPORTANT: Save this password securely!
+   This password will not be shown again.
+
+Next steps:
+  1. Log in at http://localhost:3000
+  2. Change password after first login (recommended)
+```
+
+**Why different for admins?**
+- Admin accounts are typically created with non-existent email addresses (e.g., `admin@localhost`)
+- The password is displayed directly in the console for immediate use
+- No email is sent since the email address may not be real
+- After logging in, the admin can use the web interface to invite other users
+
 **What happens:**
 - Admin enters **only email + name**
 - System creates account with random unusable password
-- System sends **password reset email** automatically
-- User receives email with secure token link
+- System sends **password reset email** automatically (with security recommendations)
+- User receives email with:
+  - Secure token link to set password
+  - **Security guidelines** emphasizing NOT reusing passwords
+  - Password best practices (16+ chars, passphrases, etc.)
+  - Explanation of why unique passwords matter for self-hosted platforms
 - User clicks link and **sets their own password**
 - User is **forced to create password** (can't skip)
+
+📧 **Email template:** The password setup email includes comprehensive security guidance. See `custom-views/devise/mailer/reset_password_instructions.html.erb` for details.
 
 #### Method B: Rails Console (Advanced)
 
@@ -104,11 +189,17 @@ admin = User.create!(
 The user automatically receives an email with subject: **"Reset password instructions"**
 
 **Email contains:**
+- Personalized greeting
 - Link to set password (with secure token)
-- Link expires in 6 hours (Devise default)
+- **⚠️ Security guidelines section** with:
+  - **Emphasis on NOT reusing passwords from other platforms**
+  - Recommendation to use 16+ character passwords
+  - Passphrase examples (e.g., "correct-horse-battery-staple")
+  - Explanation of why unique passwords matter for self-hosted infrastructure
+- Link expires in 6 hours for security
 - No temporary password to share
 
-**No admin action needed** - email is sent automatically!
+**No admin action needed** - email is sent automatically with all security guidance included!
 
 ### Step 3: User Sets Password
 
@@ -280,34 +371,96 @@ docker compose run --rm app rails runner "
 
 ## Security Best Practices
 
-### 1. Strong Passwords
+### 1. Password Security
 
-When creating users:
-- ✅ Use auto-generated passwords (via `make add-user`)
-- ✅ Minimum 12 characters
-- ✅ Mix of letters, numbers, symbols
-- ❌ Don't reuse passwords
+#### Current Password Requirements
+
+Loomio enforces the following password rules:
+
+- **Minimum length**: 8 characters (enforced)
+- **Maximum length**: 128 characters
+- **Complexity**: None (⚠️ security concern)
+- **Password storage**: bcrypt with 10 rounds (secure)
+
+⚠️ **Security Warning**: Loomio currently does NOT enforce password complexity. Users can set weak passwords like:
+- `password` (8 chars) - ✗ ACCEPTED
+- `12345678` (8 chars) - ✗ ACCEPTED
+- `qwerty123` (9 chars) - ✗ ACCEPTED
+
+This is a **security concern** in invite-only mode where admins trust users to create secure passwords via the automated email workflow.
+
+#### Recommended Password Practices
+
+When onboarding users via `make add-user`:
+
+**What the system does automatically:**
+- ✅ Generates random unusable password for initial account creation
+- ✅ Sends password reset email (token-based, expires in 6 hours)
+- ✅ Forces user to create their own password
+- ✅ Stores password securely using bcrypt
+
+**What users should do:**
+- ✅ Use minimum **16+ characters** (not just the 8 character minimum)
+- ✅ Use passphrases like `correct-horse-battery-staple` (easy to remember, hard to crack)
+- ✅ Mix uppercase, lowercase, numbers, and symbols
+- ✅ Avoid common passwords, dictionary words, personal information
+- ❌ Don't reuse passwords from other sites
+- ❌ Don't use simple patterns like `Password123`
+
+✅ **Good news:** Password security guidance is **automatically included** in the password setup email!
+
+The custom email template (`custom-views/devise/mailer/reset_password_instructions.html.erb`) contains:
+- Clear warning NOT to reuse passwords from other platforms
+- Recommendation for 16+ character passwords
+- Passphrase examples
+- Explanation of why this matters for self-hosted infrastructure
+
+**No manual communication needed** - users receive comprehensive security guidance automatically when you run `make add-user`.
+
+#### Password Strength Improvements (Optional)
+
+If you need stronger password enforcement, consider these options:
+
+**Option 1: Client-side password strength meter**
+Add a JavaScript library (like zxcvbn) to the password reset page to show strength feedback without changing server validation.
+
+**Option 2: Custom password validation**
+Add a custom validator to Loomio's User model to enforce complexity:
+
+```ruby
+# app/models/user.rb
+validate :password_complexity
+
+def password_complexity
+  return if password.blank?
+
+  unless password.match?(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    errors.add :password, 'must include at least one lowercase letter, one uppercase letter, and one digit'
+  end
+end
+```
+
+**Option 3: Reject common passwords**
+Use a gem like `pwned` to check passwords against known breach databases.
+
+**Trade-offs:**
+- ✅ Stronger security
+- ❌ More complex onboarding
+- ❌ May frustrate non-technical users
+- ❌ Requires code changes and testing
+
+For most private communities, **educating users** about password best practices is sufficient.
 
 ### 2. Secure Communication
 
-When sharing credentials:
+**Note**: With the automated email workflow (`make add-user`), you NO LONGER need to manually share passwords! Users receive password setup links via email.
+
+If you need to share other sensitive information:
 - ✅ Use encrypted channels (password manager links, Signal, encrypted email)
 - ❌ Don't send via plain text email or chat
 - ❌ Don't write on paper or whiteboards
 
-### 3. Force Password Changes
-
-Require users to change their temporary password on first login:
-
-```bash
-# Set password as expired
-docker compose run --rm app rails runner "
-  user = User.find_by(email: 'user@example.com')
-  user.update(password_changed_at: 1.year.ago)
-"
-```
-
-### 4. Regular Audits
+### 3. Regular Audits
 
 ```bash
 # Check inactive users (no login in 90 days)
@@ -322,7 +475,35 @@ docker compose run --rm app rails runner "
 
 ## Common Workflows
 
-### Onboarding New Team Member
+### Onboarding New Team Member (Recommended Approach)
+
+**Using Web Interface (Easiest):**
+
+1. **Log in as admin** to Loomio
+2. **Navigate to the group** the user should join
+3. **Click "Invite"** button
+4. **Enter email**: `newuser@company.com`
+5. **Add optional message**: "Welcome to the team! Here you can..."
+6. **Click "Send invitations"**
+
+**What happens:**
+- ✅ User account created automatically (if doesn't exist)
+- ✅ User added to group
+- ✅ User receives invitation email with:
+  - Your personal message
+  - Password setup link with security guidelines
+  - Context about the group they're joining
+
+**Timeline:**
+- Admin: 30 seconds (via web UI)
+- User: 2 minutes (check email, set password, login)
+- Total: 2.5 minutes from invitation to active group member
+
+---
+
+### Alternative: Command-Line Approach
+
+If you need to create a user without immediately adding them to a group:
 
 ```bash
 # 1. Create user account
@@ -332,16 +513,10 @@ make add-user
 
 # 2. User receives email
 # User clicks link and sets their own password
-# No manual password sharing needed!
 
-# 3. Add to groups via web interface
+# 3. Later: Add to groups via web interface
 # Navigate to group → Invite → newuser@company.com
 ```
-
-**Timeline:**
-- Admin: 30 seconds (enter email + name)
-- User: 2 minutes (check email, set password, login)
-- Total: 2.5 minutes from creation to active user
 
 ### Offboarding Team Member
 
