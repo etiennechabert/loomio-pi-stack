@@ -166,8 +166,8 @@ services:
       GDRIVE_FOLDER_ID: ${GDRIVE_FOLDER_ID}
       RAILS_ENV: ${RAILS_ENV:-development}
     volumes:
-      - ./data/db_backup:/backups
-      - db-data:/db-data:ro
+      # Backup location and db-data mount moved to mode-specific overlays
+      # User uploads folders are needed in both dev and RAM modes
       - ./data/uploads/storage:/loomio/storage:ro
       - ./data/uploads/system:/loomio/public/system:ro
       - ./data/uploads/files:/loomio/public/files:ro

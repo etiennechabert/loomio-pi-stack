@@ -33,9 +33,4 @@ services:
       # On boot: download from GDrive → RAM → restore
       # Size: ~500MB-1GB for encrypted backup
       - /backups:mode=0755
-    volumes:
-      # In RAM mode, database is accessed via pg_dump over network, not filesystem
-      # Only need user uploads folders (these stay on disk)
-      - ./data/uploads/storage:/loomio/storage:ro
-      - ./data/uploads/system:/loomio/public/system:ro
-      - ./data/uploads/files:/loomio/public/files:ro
+    # User uploads volumes inherited from base config
