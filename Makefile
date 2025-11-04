@@ -510,7 +510,11 @@ update: ## Update all containers
 	@docker compose pull
 	@docker compose up -d
 	@echo "$(BLUE)Running database migrations...$(NC)"
-	@docker compose run --rm app rake db:migrate
+	@docker compose run --rm app rake db:migrate || { \
+		echo "$(RED)✗ Database migrations failed!$(NC)"; \
+		echo "$(RED)Update aborted - database schema mismatch.$(NC)"; \
+		exit 1; \
+	}
 	@echo "$(GREEN)✓ Update complete$(NC)"
 
 clean: ## Clean up Docker resources

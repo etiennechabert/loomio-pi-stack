@@ -111,7 +111,9 @@ log "${BLUE}Running database migrations...${NC}"
 docker compose run --rm app rake db:migrate
 
 if [ $? -ne 0 ]; then
-    log "${YELLOW}⚠ Migrations failed, but continuing...${NC}"
+    log "${RED}✗ Database migrations failed!${NC}"
+    log "${RED}Cannot restart services with mismatched database schema.${NC}"
+    exit 1
 fi
 
 # Restart app services
