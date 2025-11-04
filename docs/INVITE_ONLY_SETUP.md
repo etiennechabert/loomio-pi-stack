@@ -127,22 +127,25 @@ Note: If email not received, check SMTP configuration
 ```
 ✓ Admin User Created Successfully!
 
-Email:    admin@example.com
-Password: Xy7$kP9mQ2nR8vL
+Email: admin@example.com
 
-⚠️  IMPORTANT: Save this password securely!
-   This password will not be shown again.
+🔗 Password Setup Link:
+http://localhost:3000/users/password/edit?reset_password_token=gg2zHRJ2bKKebkwMWYBs
 
-Next steps:
-  1. Log in at http://localhost:3000
-  2. Change password after first login (recommended)
+⚠️  IMPORTANT:
+   1. Open this link in your browser
+   2. Set your own secure password
+   3. Link expires in 6 hours
+
+💡 This link will only be shown once!
 ```
 
 **Why different for admins?**
 - Admin accounts are typically created with non-existent email addresses (e.g., `admin@localhost`)
-- The password is displayed directly in the console for immediate use
+- A password reset link is displayed directly in the console for immediate use
 - No email is sent since the email address may not be real
-- After logging in, the admin can use the web interface to invite other users
+- The admin is forced to set their own password (more secure than displaying a generated password)
+- After setting the password, the admin can log in and use the web interface to invite other users
 
 **What happens:**
 - Admin enters **only email + name**

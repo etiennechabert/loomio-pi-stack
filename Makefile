@@ -421,7 +421,7 @@ add-user: check-env ## Create a new user and send password setup email
 		exit 1; \
 	}
 
-add-admin: check-env ## Create an admin user with password displayed in console
+add-admin: check-env ## Create an admin user with password reset link
 	@echo "$(BLUE)═══════════════════════════════════════$(NC)"
 	@echo "$(BLUE)        Create Loomio Admin User        $(NC)"
 	@echo "$(BLUE)═══════════════════════════════════════$(NC)"
@@ -437,29 +437,35 @@ add-admin: check-env ## Create an admin user with password displayed in console
 		exit 1; \
 	fi; \
 	echo ""; \
-	echo "$(BLUE)Creating admin user...$(NC)"; \
-	password=$$(openssl rand -base64 16); \
-	docker compose run --rm app rails runner "begin; user = User.create!(email: '$$email', name: '$$name', password: '$$password', password_confirmation: '$$password', email_verified: true, is_admin: true); puts 'Admin user created: ' + user.email; rescue => e; puts '✗ Error: ' + e.message; exit 1; end" && { \
+	echo "$(BLUE)Creating admin user and generating password reset link...$(NC)"; \
+	set -a; . ./.env; set +a; \
+	CANONICAL_HOST=$${CANONICAL_HOST:-localhost:3000}; \
+	reset_token=$$(docker compose run --rm app rails runner "temp_pass = SecureRandom.hex(32); user = User.create!(email: '$$email', name: '$$name', password: temp_pass, password_confirmation: temp_pass, email_verified: true, is_admin: true); raw_token, hashed_token = Devise.token_generator.generate(User, :reset_password_token); user.reset_password_token = hashed_token; user.reset_password_sent_at = Time.now; user.save!(validate: false); puts raw_token" 2>&1 | grep -v "warning" | tail -1); \
+	if echo "$$reset_token" | grep -qv "ERROR"; then \
+		reset_url="http://$$CANONICAL_HOST/users/password/edit?reset_password_token=$$reset_token"; \
 		echo ""; \
 		echo "$(GREEN)═══════════════════════════════════════$(NC)"; \
 		echo "$(GREEN)  ✓ Admin User Created Successfully!  $(NC)"; \
 		echo "$(GREEN)═══════════════════════════════════════$(NC)"; \
 		echo ""; \
-		echo "$(GREEN)Email:    $$email$(NC)"; \
-		echo "$(GREEN)Password: $$password$(NC)"; \
+		echo "$(GREEN)Email: $$email$(NC)"; \
 		echo ""; \
-		echo "$(YELLOW)⚠️  IMPORTANT: Save this password securely!$(NC)"; \
-		echo "$(YELLOW)   This password will not be shown again.$(NC)"; \
+		echo "$(YELLOW)🔗 Password Setup Link:$(NC)"; \
+		echo "$(CYAN)$$reset_url$(NC)"; \
 		echo ""; \
-		echo "$(YELLOW)Next steps:$(NC)"; \
-		echo "  1. Log in at http://localhost:3000"; \
-		echo "  2. Change password after first login (recommended)"; \
+		echo "$(YELLOW)⚠️  IMPORTANT:$(NC)"; \
+		echo "$(YELLOW)   1. Open this link in your browser$(NC)"; \
+		echo "$(YELLOW)   2. Set your own secure password$(NC)"; \
+		echo "$(YELLOW)   3. Link expires in 6 hours$(NC)"; \
 		echo ""; \
-	} || { \
+		echo "$(YELLOW)💡 This link will only be shown once!$(NC)"; \
+		echo ""; \
+	else \
 		echo ""; \
 		echo "$(RED)✗ Failed to create admin user$(NC)"; \
+		echo "$$reset_token"; \
 		exit 1; \
-	}
+	fi
 
 list-users: check-env ## List all users
 	@echo "$(BLUE)Loomio Users:$(NC)"
