@@ -41,9 +41,9 @@ if [ "${GDRIVE_ENABLED}" != "true" ]; then
 fi
 
 # Check required variables
-if [ -z "${GDRIVE_CREDENTIALS}" ]; then
-    log "${RED}✗ GDRIVE_CREDENTIALS not set${NC}"
-    log "${YELLOW}Configure service account JSON in .env${NC}"
+if [ -z "${GDRIVE_TOKEN}" ]; then
+    log "${RED}✗ GDRIVE_TOKEN not set${NC}"
+    log "${YELLOW}Configure OAuth token in .env${NC}"
     exit 1
 fi
 
@@ -64,7 +64,7 @@ cat > "$RCLONE_CONFIG_DIR/rclone.conf" << EOF
 [gdrive]
 type = drive
 scope = drive
-service_account_credentials = ${GDRIVE_CREDENTIALS}
+token = ${GDRIVE_TOKEN}
 root_folder_id = ${GDRIVE_FOLDER_ID}
 EOF
 
