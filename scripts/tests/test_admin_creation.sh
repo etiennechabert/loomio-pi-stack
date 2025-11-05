@@ -12,7 +12,7 @@ echo "Testing: ${TEST_NAME}"
 
 # Run admin creation script
 echo "  → Creating admin: ${TEST_EMAIL}..."
-OUTPUT=$(docker exec loomio-app bundle exec rails runner scripts/ruby/create_admin.rb "${TEST_EMAIL}" "${TEST_NAME_USER}" 2>&1)
+OUTPUT=$(docker exec loomio-app bundle exec rails runner /scripts/ruby/create_admin.rb "${TEST_EMAIL}" "${TEST_NAME_USER}" 2>&1)
 
 # Check if output contains email
 if echo "${OUTPUT}" | grep -q "${TEST_EMAIL}"; then

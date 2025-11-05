@@ -10,7 +10,7 @@ STATUS_FILE="./production/backups/.last_sync_status"
 echo "Testing: ${TEST_NAME}"
 
 # Remove old status file if exists
-rm -f "${STATUS_FILE}"
+docker exec loomio-backup rm -f /backups/.last_sync_status 2>/dev/null || true
 
 # Run sync script
 echo "  → Running sync-to-gdrive.sh..."

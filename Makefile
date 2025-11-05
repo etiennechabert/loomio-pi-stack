@@ -78,7 +78,7 @@ sync-gdrive: ## Upload backups to Google Drive
 
 create-admin: ## Create admin user (prints password directly)
 	@printf "$(BLUE)Creating admin user...$(NC)\n"
-	@read -p "Enter email: " email; 	read -p "Enter name: " name; 	docker exec loomio-app bundle exec rails runner scripts/ruby/create_admin.rb "$$email" "$$name"
+	@read -p "Enter email: " email; 	read -p "Enter name: " name; 	docker exec loomio-app bundle exec rails runner /scripts/ruby/create_admin.rb "$$email" "$$name"
 
 ##@ Health & Monitoring
 
