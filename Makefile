@@ -1,7 +1,7 @@
 # Loomio Pi Stack - Production RAM Mode (Raspberry Pi)
 SHELL := /bin/bash
 
-.PHONY: help start stop restart down status logs backup restore sync-gdrive update-images migrate create-admin health rails-console db-console init-env init-gdrive clean
+.PHONY: help start stop restart status logs backup restore sync-gdrive update-images migrate create-admin health rails-console db-console init-env init-gdrive clean
 
 # Default target
 .DEFAULT_GOAL := help
@@ -38,13 +38,14 @@ restart: ## Restart all containers
 	docker compose restart
 	@printf "$(GREEN)✓ Containers restarted$(NC)\n"
 
-down: ## Stop and remove all containers
-	@printf "$(RED)Stopping and removing containers...$(NC)\n"
-	docker compose down
-	@printf "$(GREEN)✓ Containers removed$(NC)\n"
-
 status: ## Show container status
 	@docker compose ps
+
+clean: ## Remove all containers, volumes, and data (WARNING: DELETES EVERYTHING)
+	@printf "$(RED)═══════════════════════════════════════════════════$(NC)\n"
+	@printf "$(RED)⚠  WARNING: This will DELETE ALL DATA!$(NC)\n"
+	@printf "$(RED)═══════════════════════════════════════════════════$(NC)\n"
+	@read -p "Type 'DELETE' to confirm: " confirm; 	if [ "$$confirm" = "DELETE" ]; then 		docker compose down -v; 		sudo rm -rf data/* production/backups/*; 		echo "$(GREEN)✓ Cleanup complete$(NC)"; 	else 		echo "Cancelled"; 	fi
 
 logs: ## Show container logs (usage: make logs [SERVICE=app])
 	@docker compose logs -f $(if $(SERVICE),$(SERVICE),)
@@ -119,15 +120,6 @@ init-env: ## Setup production environment (.env file)
 
 init-gdrive: ## Setup Google Drive OAuth (one-time)
 	@./scripts/init-gdrive.sh
-
-##@ Cleanup
-
-clean: ## Remove all containers, volumes, and data
-	@printf "$(RED)═══════════════════════════════════════════════════$(NC)\n"
-	@printf "$(RED)⚠  WARNING: This will DELETE ALL DATA!$(NC)\n"
-	@printf "$(RED)═══════════════════════════════════════════════════$(NC)\n"
-	@read -p "Type 'DELETE' to confirm: " confirm; 	if [ "$$confirm" = "DELETE" ]; then 		docker compose down -v; 		sudo rm -rf data/* production/backups/*; 		echo "$(GREEN)✓ Cleanup complete$(NC)"; 	else 		echo "Cancelled"; 	fi
-
 
 ##@ Testing
 
