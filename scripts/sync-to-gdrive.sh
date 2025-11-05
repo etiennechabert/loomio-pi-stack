@@ -54,9 +54,9 @@ token = '""'
 root_folder_id = '""'
 EOF
 
-# Sync backups to production/backups/{environment}/ in Google Drive
-echo "Uploading to Google Drive: production/backups/'"${ENV_NAME}"'/"
-rclone sync "/backups" "gdrive:production/backups/'"${ENV_NAME}"'"     --config "$RCLONE_CONFIG_DIR/rclone.conf"     --transfers 4     --checkers 8     --fast-list     --exclude ".DS_Store"     --exclude "Thumbs.db"     --exclude "*.tmp"     --exclude ".last_sync_status"     --progress
+# Sync backups to {environment}/backups/ in Google Drive
+echo "Uploading to Google Drive: '"${ENV_NAME}"'/backups/"
+rclone sync "/backups" "gdrive:'"${ENV_NAME}"'/backups"     --config "$RCLONE_CONFIG_DIR/rclone.conf"     --transfers 4     --checkers 8     --fast-list     --exclude ".DS_Store"     --exclude "Thumbs.db"     --exclude "*.tmp"     --exclude ".last_sync_status"     --progress
 
 # Write success status with timestamp
 date +%s > /backups/.last_sync_status

@@ -86,22 +86,21 @@ log "${BLUE}Step 2: Creating folder structure...${NC}"
 # Get environment name
 ENV_NAME="${RAILS_ENV:-production}"
 
-# Create production/backups/{environment} folder structure
-log "  Creating: production/backups/${ENV_NAME}/"
-rclone mkdir "gdrive:production/backups/${ENV_NAME}" --config "$RCLONE_CONFIG_DIR/rclone.conf" 2>/dev/null || true
+# Create {environment}/backups and {environment}/uploads folder structure
+log "  Creating: ${ENV_NAME}/backups/"
+rclone mkdir "gdrive:${ENV_NAME}/backups" --config "$RCLONE_CONFIG_DIR/rclone.conf" 2>/dev/null || true
 
-# Create Upload folder with subfolders
-log "  Creating: Upload/"
-rclone mkdir gdrive:Upload --config "$RCLONE_CONFIG_DIR/rclone.conf" 2>/dev/null || true
+log "  Creating: ${ENV_NAME}/uploads/"
+rclone mkdir "gdrive:${ENV_NAME}/uploads" --config "$RCLONE_CONFIG_DIR/rclone.conf" 2>/dev/null || true
 
-log "  Creating: Upload/storage/"
-rclone mkdir gdrive:Upload/storage --config "$RCLONE_CONFIG_DIR/rclone.conf" 2>/dev/null || true
+log "  Creating: ${ENV_NAME}/uploads/storage/"
+rclone mkdir "gdrive:${ENV_NAME}/uploads/storage" --config "$RCLONE_CONFIG_DIR/rclone.conf" 2>/dev/null || true
 
-log "  Creating: Upload/system/"
-rclone mkdir gdrive:Upload/system --config "$RCLONE_CONFIG_DIR/rclone.conf" 2>/dev/null || true
+log "  Creating: ${ENV_NAME}/uploads/system/"
+rclone mkdir "gdrive:${ENV_NAME}/uploads/system" --config "$RCLONE_CONFIG_DIR/rclone.conf" 2>/dev/null || true
 
-log "  Creating: Upload/files/"
-rclone mkdir gdrive:Upload/files --config "$RCLONE_CONFIG_DIR/rclone.conf" 2>/dev/null || true
+log "  Creating: ${ENV_NAME}/uploads/files/"
+rclone mkdir "gdrive:${ENV_NAME}/uploads/files" --config "$RCLONE_CONFIG_DIR/rclone.conf" 2>/dev/null || true
 
 log "${GREEN}✓ Folder structure created${NC}"
 echo ""
@@ -127,9 +126,9 @@ If you can see this file in Google Drive, the setup is working correctly!
 TESTEOF
 
 # Upload test file to Backup folder
-log "  Uploading test file to production/backups/${ENV_NAME}/..."
-if rclone copy "$TEST_FILE" "gdrive:production/backups/${ENV_NAME}/" --config "$RCLONE_CONFIG_DIR/rclone.conf"; then
-    log "${GREEN}✓ Test file uploaded to production/backups/${ENV_NAME}/${NC}"
+log "  Uploading test file to ${ENV_NAME}/backups/..."
+if rclone copy "$TEST_FILE" "gdrive:${ENV_NAME}/backups/" --config "$RCLONE_CONFIG_DIR/rclone.conf"; then
+    log "${GREEN}✓ Test file uploaded to ${ENV_NAME}/backups/${NC}"
 else
     log "${RED}✗ Failed to upload test file${NC}"
     rm -rf "$RCLONE_CONFIG_DIR" "$TEST_FILE"
@@ -137,9 +136,9 @@ else
 fi
 
 # Upload test file to Upload folder
-log "  Uploading test file to Upload/storage/..."
-if rclone copy "$TEST_FILE" gdrive:Upload/storage/ --config "$RCLONE_CONFIG_DIR/rclone.conf"; then
-    log "${GREEN}✓ Test file uploaded to Upload/storage/${NC}"
+log "  Uploading test file to ${ENV_NAME}/uploads/storage/..."
+if rclone copy "$TEST_FILE" "gdrive:${ENV_NAME}/uploads/storage/" --config "$RCLONE_CONFIG_DIR/rclone.conf"; then
+    log "${GREEN}✓ Test file uploaded to ${ENV_NAME}/uploads/storage/${NC}"
 else
     log "${RED}✗ Failed to upload test file${NC}"
     rm -rf "$RCLONE_CONFIG_DIR" "$TEST_FILE"
@@ -159,8 +158,8 @@ rclone lsd gdrive: --config "$RCLONE_CONFIG_DIR/rclone.conf" | while read line; 
 done
 
 log ""
-log "${YELLOW}Upload subfolders:${NC}"
-rclone lsd gdrive:Upload/ --config "$RCLONE_CONFIG_DIR/rclone.conf" | while read line; do
+log "${YELLOW}${ENV_NAME}/uploads subfolders:${NC}"
+rclone lsd "gdrive:${ENV_NAME}/uploads/" --config "$RCLONE_CONFIG_DIR/rclone.conf" | while read line; do
     log "  $line"
 done
 
@@ -169,7 +168,7 @@ log "${BLUE}Step 5: Testing download (verify read access)...${NC}"
 
 # Download test file
 DOWNLOAD_FILE="/tmp/loomio-gdrive-download-$$.txt"
-if rclone copy "gdrive:production/backups/${ENV_NAME}/loomio-gdrive-test-$$.txt" "$DOWNLOAD_FILE" --config "$RCLONE_CONFIG_DIR/rclone.conf"; then
+if rclone copy "gdrive:${ENV_NAME}/backups/loomio-gdrive-test-$$.txt" "$DOWNLOAD_FILE" --config "$RCLONE_CONFIG_DIR/rclone.conf"; then
     log "${GREEN}✓ Successfully downloaded test file${NC}"
     rm -f "$DOWNLOAD_FILE"/*.txt
     rmdir "$DOWNLOAD_FILE" 2>/dev/null || true
@@ -186,15 +185,15 @@ log "${GREEN}║              ✓ Google Drive Setup Complete!                  
 log "${GREEN}╚═══════════════════════════════════════════════════════════════${NC}"
 echo ""
 log "${YELLOW}Folder Structure Created:${NC}"
-log "  📁 production/backups/${ENV_NAME}/  - Database backups (environment-specific)"
-log "  📁 Upload/                          - File uploads go here"
-log "     📁 storage/                      - Active Storage files"
-log "     📁 system/                       - Legacy uploads"
-log "     📁 files/                        - Public files"
+log "  📁 ${ENV_NAME}/backups/     - Database backups"
+log "  📁 ${ENV_NAME}/uploads/     - File uploads"
+log "     📁 storage/              - Active Storage files"
+log "     📁 system/               - Legacy uploads"
+log "     📁 files/                - Public files"
 echo ""
 log "${YELLOW}Test Files Created:${NC}"
-log "  • production/backups/${ENV_NAME}/loomio-gdrive-test-$$.txt"
-log "  • Upload/storage/loomio-gdrive-test-$$.txt"
+log "  • ${ENV_NAME}/backups/loomio-gdrive-test-$$.txt"
+log "  • ${ENV_NAME}/uploads/storage/loomio-gdrive-test-$$.txt"
 echo ""
 log "${GREEN}Next Steps:${NC}"
 log "  1. Check Google Drive to verify folders exist"

@@ -78,7 +78,7 @@ root_folder_id = ${GDRIVE_FOLDER_ID}
 EOF
 
         # Download latest backup from environment-specific folder
-        rclone copy \"gdrive:production/backups/${ENV_NAME}\" \"/backups\"             --config \"\$RCLONE_CONFIG_DIR/rclone.conf\"             --max-age 7d             --progress
+        rclone copy \"gdrive:${ENV_NAME}/backups\" \"/backups\"             --config \"\$RCLONE_CONFIG_DIR/rclone.conf\"             --max-age 7d             --progress
 
         # Cleanup
         rm -rf \"\$RCLONE_CONFIG_DIR\"
