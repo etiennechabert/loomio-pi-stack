@@ -128,7 +128,6 @@ clean: ## Remove all containers, volumes, and data
 	@echo "$(RED)═══════════════════════════════════════════════════$(NC)"
 	@read -p "Type 'DELETE' to confirm: " confirm; 	if [ "$$confirm" = "DELETE" ]; then 		docker compose down -v; 		sudo rm -rf data/* production/backups/*; 		echo "$(GREEN)✓ Cleanup complete$(NC)"; 	else 		echo "Cancelled"; 	fi
 
-	@./scripts/tests/test_containers.sh
 
 ##@ Testing
 
