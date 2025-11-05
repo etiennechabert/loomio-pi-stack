@@ -8,6 +8,16 @@ TEST_NAME="Admin Creation"
 TEST_EMAIL="test-admin-$(date +%s)@example.com"
 TEST_NAME_USER="Test Admin"
 
+# Load environment to get database name
+if [ -f .env ]; then
+    set -a
+    . .env
+    set +a
+fi
+
+DB_NAME="${POSTGRES_DB:-loomio_production}"
+DB_USER="${POSTGRES_USER:-loomio}"
+
 echo "Testing: ${TEST_NAME}"
 
 # Run admin creation script
@@ -33,11 +43,11 @@ fi
 
 # Verify admin exists in database
 echo "  → Verifying admin in database..."
-if docker exec loomio-db psql -U loomio -d loomio_production -t -c "SELECT email FROM users WHERE email='${TEST_EMAIL}' AND is_admin=true;" | grep -q "${TEST_EMAIL}"; then
+if docker exec loomio-db psql -U "${DB_USER}" -d "${DB_NAME}" -t -c "SELECT email FROM users WHERE email='${TEST_EMAIL}' AND is_admin=true;" | grep -q "${TEST_EMAIL}"; then
     echo "  ✓ Test passed: Admin exists in database"
-    
+
     # Cleanup: Delete test admin
-    docker exec loomio-db psql -U loomio -d loomio_production -c "DELETE FROM users WHERE email='${TEST_EMAIL}';" > /dev/null
+    docker exec loomio-db psql -U "${DB_USER}" -d "${DB_NAME}" -c "DELETE FROM users WHERE email='${TEST_EMAIL}';" > /dev/null
     echo "  ✓ Cleanup: Test admin deleted"
     exit 0
 else

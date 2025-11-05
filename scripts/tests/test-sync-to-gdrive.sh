@@ -36,11 +36,12 @@ if ./scripts/sync-to-gdrive.sh; then
     fi
 else
     echo "  ⚠ Test skipped: Sync failed (Google Drive may not be configured)"
-    
+
     # Check if error status was written
     if [ -f "${STATUS_FILE}" ] && [ "$(cat "${STATUS_FILE}")" = "error" ]; then
-        echo "  ✓ Test passed: Error status written correctly"
-        exit 0
+        echo "  ✓ Error status written correctly"
+        exit 2  # Skip - GDrive not configured but script behaved correctly
     fi
-    exit 0
+    echo "  ✗ Test failed: Error status not written correctly"
+    exit 1
 fi

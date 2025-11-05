@@ -28,8 +28,8 @@ fi
 if [ -z "${GDRIVE_TOKEN}" ] || [ -z "${GDRIVE_FOLDER_ID}" ]; then
     log "${RED}✗ Google Drive not configured!${NC}"
     log "Run: make init-gdrive"
-    # Write error status inside container
-    docker exec loomio-backup bash -c 'echo "error" > /backups/.last_sync_status'
+    # Write error status inside container (don't fail if container not running)
+    docker exec loomio-backup bash -c 'echo "error" > /backups/.last_sync_status' 2>/dev/null || true
     exit 1
 fi
 
@@ -67,7 +67,7 @@ echo "✓ Sync completed"
     exit 0
 else
     log "${RED}✗ Sync failed!${NC}"
-    # Write error status
-    docker exec loomio-backup bash -c 'echo "error" > /backups/.last_sync_status'
+    # Write error status (don't fail if container not running)
+    docker exec loomio-backup bash -c 'echo "error" > /backups/.last_sync_status' 2>/dev/null || true
     exit 1
 fi

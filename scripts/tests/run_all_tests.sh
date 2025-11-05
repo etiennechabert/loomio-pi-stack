@@ -27,16 +27,16 @@ SKIPPED=0
 for test_script in "${SCRIPT_DIR}"/test-*.sh; do
     if [ -f "${test_script}" ]; then
         TEST_NAME=$(basename "${test_script}")
-        
-        if bash "${test_script}"; then
+
+        bash "${test_script}"
+        EXIT_CODE=$?
+
+        if [ ${EXIT_CODE} -eq 0 ]; then
             ((PASSED++))
+        elif [ ${EXIT_CODE} -eq 2 ]; then
+            ((SKIPPED++))
         else
-            EXIT_CODE=$?
-            if [ ${EXIT_CODE} -eq 0 ]; then
-                ((SKIPPED++))
-            else
-                ((FAILED++))
-            fi
+            ((FAILED++))
         fi
         echo ""
     fi
