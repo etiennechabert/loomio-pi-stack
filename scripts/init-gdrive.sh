@@ -83,9 +83,12 @@ echo ""
 
 log "${BLUE}Step 2: Creating folder structure...${NC}"
 
-# Create Backup folder
-log "  Creating: Backup/"
-rclone mkdir gdrive:Backup --config "$RCLONE_CONFIG_DIR/rclone.conf" 2>/dev/null || true
+# Get environment name
+ENV_NAME="${RAILS_ENV:-production}"
+
+# Create production/backups/{environment} folder structure
+log "  Creating: production/backups/${ENV_NAME}/"
+rclone mkdir "gdrive:production/backups/${ENV_NAME}" --config "$RCLONE_CONFIG_DIR/rclone.conf" 2>/dev/null || true
 
 # Create Upload folder with subfolders
 log "  Creating: Upload/"
@@ -124,9 +127,9 @@ If you can see this file in Google Drive, the setup is working correctly!
 TESTEOF
 
 # Upload test file to Backup folder
-log "  Uploading test file to Backup/..."
-if rclone copy "$TEST_FILE" gdrive:Backup/ --config "$RCLONE_CONFIG_DIR/rclone.conf"; then
-    log "${GREEN}✓ Test file uploaded to Backup/${NC}"
+log "  Uploading test file to production/backups/${ENV_NAME}/..."
+if rclone copy "$TEST_FILE" "gdrive:production/backups/${ENV_NAME}/" --config "$RCLONE_CONFIG_DIR/rclone.conf"; then
+    log "${GREEN}✓ Test file uploaded to production/backups/${ENV_NAME}/${NC}"
 else
     log "${RED}✗ Failed to upload test file${NC}"
     rm -rf "$RCLONE_CONFIG_DIR" "$TEST_FILE"
@@ -166,7 +169,7 @@ log "${BLUE}Step 5: Testing download (verify read access)...${NC}"
 
 # Download test file
 DOWNLOAD_FILE="/tmp/loomio-gdrive-download-$$.txt"
-if rclone copy gdrive:Backup/loomio-gdrive-test-$$.txt "$DOWNLOAD_FILE" --config "$RCLONE_CONFIG_DIR/rclone.conf"; then
+if rclone copy "gdrive:production/backups/${ENV_NAME}/loomio-gdrive-test-$$.txt" "$DOWNLOAD_FILE" --config "$RCLONE_CONFIG_DIR/rclone.conf"; then
     log "${GREEN}✓ Successfully downloaded test file${NC}"
     rm -f "$DOWNLOAD_FILE"/*.txt
     rmdir "$DOWNLOAD_FILE" 2>/dev/null || true
@@ -183,14 +186,14 @@ log "${GREEN}║              ✓ Google Drive Setup Complete!                  
 log "${GREEN}╚═══════════════════════════════════════════════════════════════${NC}"
 echo ""
 log "${YELLOW}Folder Structure Created:${NC}"
-log "  📁 Backup/              - Database backups go here"
-log "  📁 Upload/              - File uploads go here"
-log "     📁 storage/          - Active Storage files"
-log "     📁 system/           - Legacy uploads"
-log "     📁 files/            - Public files"
+log "  📁 production/backups/${ENV_NAME}/  - Database backups (environment-specific)"
+log "  📁 Upload/                          - File uploads go here"
+log "     📁 storage/                      - Active Storage files"
+log "     📁 system/                       - Legacy uploads"
+log "     📁 files/                        - Public files"
 echo ""
 log "${YELLOW}Test Files Created:${NC}"
-log "  • Backup/loomio-gdrive-test-$$.txt"
+log "  • production/backups/${ENV_NAME}/loomio-gdrive-test-$$.txt"
 log "  • Upload/storage/loomio-gdrive-test-$$.txt"
 echo ""
 log "${GREEN}Next Steps:${NC}"

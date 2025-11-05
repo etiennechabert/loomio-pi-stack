@@ -35,6 +35,9 @@ fi
 
 log "${BLUE}Syncing backups to Google Drive...${NC}"
 
+# Get environment name
+ENV_NAME="${RAILS_ENV:-production}"
+
 # Execute sync inside backup container
 if docker exec loomio-backup bash -c '
 set -e
@@ -51,9 +54,9 @@ token = '""'
 root_folder_id = '""'
 EOF
 
-# Sync backups to production/backups/ in Google Drive
-echo "Uploading to Google Drive: production/backups/"
-rclone sync "/backups" "gdrive:production/backups"     --config "$RCLONE_CONFIG_DIR/rclone.conf"     --transfers 4     --checkers 8     --fast-list     --exclude ".DS_Store"     --exclude "Thumbs.db"     --exclude "*.tmp"     --exclude ".last_sync_status"     --progress
+# Sync backups to production/backups/{environment}/ in Google Drive
+echo "Uploading to Google Drive: production/backups/'"${ENV_NAME}"'/"
+rclone sync "/backups" "gdrive:production/backups/'"${ENV_NAME}"'"     --config "$RCLONE_CONFIG_DIR/rclone.conf"     --transfers 4     --checkers 8     --fast-list     --exclude ".DS_Store"     --exclude "Thumbs.db"     --exclude "*.tmp"     --exclude ".last_sync_status"     --progress
 
 # Write success status with timestamp
 date +%s > /backups/.last_sync_status

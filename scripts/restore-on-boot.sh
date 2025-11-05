@@ -57,15 +57,18 @@ if [ -z "${LATEST_BACKUP}" ]; then
     fi
     
     log "${BLUE}Downloading latest backup from Google Drive...${NC}"
-    
+
+    # Get environment name
+    ENV_NAME="${RAILS_ENV:-production}"
+
     # Download from Google Drive using rclone
     docker exec loomio-backup bash -c "
         set -e
-        
+
         # Create rclone config
         RCLONE_CONFIG_DIR=\"/tmp/rclone-config-$$\"
         mkdir -p \"\$RCLONE_CONFIG_DIR\"
-        
+
         cat > \"\$RCLONE_CONFIG_DIR/rclone.conf\" << EOF
 [gdrive]
 type = drive
@@ -73,10 +76,10 @@ scope = drive
 token = ${GDRIVE_TOKEN}
 root_folder_id = ${GDRIVE_FOLDER_ID}
 EOF
-        
-        # Download latest backup
-        rclone copy \"gdrive:production/backups\" \"/backups\"             --config \"\$RCLONE_CONFIG_DIR/rclone.conf\"             --max-age 7d             --progress
-        
+
+        # Download latest backup from environment-specific folder
+        rclone copy \"gdrive:production/backups/${ENV_NAME}\" \"/backups\"             --config \"\$RCLONE_CONFIG_DIR/rclone.conf\"             --max-age 7d             --progress
+
         # Cleanup
         rm -rf \"\$RCLONE_CONFIG_DIR\"
     "
