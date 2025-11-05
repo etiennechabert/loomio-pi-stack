@@ -13,7 +13,7 @@ services:
     networks:
       - loomio-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-loomio}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-loomio} -d ${POSTGRES_DB:-loomio_production}"]
       interval: 10s
       timeout: 5s
       retries: 5
