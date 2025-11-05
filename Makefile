@@ -1,7 +1,7 @@
 # Loomio Pi Stack - Production RAM Mode (Raspberry Pi)
 SHELL := /bin/bash
 
-.PHONY: help start stop restart down status logs backup restore sync-gdrive update-images migrate create-admin health restart-unhealthy rails-console db-console init-env init-gdrive clean
+.PHONY: help start stop restart down status logs backup restore sync-gdrive update-images migrate create-admin health rails-console db-console init-env init-gdrive clean
 
 # Default target
 .DEFAULT_GOAL := help
@@ -82,11 +82,8 @@ create-admin: ## Create admin user (prints password directly)
 
 ##@ Health & Monitoring
 
-health: ## Check container health
-	@./scripts/health-check.sh
-
-restart-unhealthy: ## Restart unhealthy containers (automatic)
-	@./scripts/restart-unhealthy.sh
+health: ## Show container status
+	@docker compose ps
 
 ##@ Console Access
 
