@@ -24,7 +24,7 @@ FAILED=0
 SKIPPED=0
 
 # Run each test
-for test_script in "${SCRIPT_DIR}"/test_*.sh; do
+for test_script in "${SCRIPT_DIR}"/test-*.sh; do
     if [ -f "${test_script}" ]; then
         TEST_NAME=$(basename "${test_script}")
         

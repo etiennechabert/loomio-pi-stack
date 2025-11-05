@@ -9,58 +9,44 @@ Integration tests for Loomio Pi Stack scripts. These tests verify actual behavio
 make test
 ```
 
-### Run individual tests
-```bash
-make test-containers    # Test all containers are running
-make test-backup        # Test backup creation
-make test-admin         # Test admin user creation
-make test-sync          # Test Google Drive sync
-```
-
 ## Test Descriptions
 
-### 
+### `test-containers.sh`
 - **Tests**: Container health and status
 - **Verifies**: All 7 expected containers are running
 - **No side effects**: Read-only check
 - **Runtime**: ~5 seconds
 
-### 
-- **Tests**: Database backup functionality
+### `test-backup-db.sh`
+- **Tests**: Database backup functionality (`backup-db.sh`)
 - **Verifies**: 
-  - Backup file is created in 
+  - Backup file is created in `production/backups/`
   - File is encrypted (not plain SQL)
 - **Side effects**: Creates a new backup file
 - **Runtime**: ~30 seconds
 
-### 
-- **Tests**: Admin user creation via Rails
+### `test-create-admin.sh`
+- **Tests**: Admin user creation (`create_admin.rb`)
 - **Verifies**:
   - Script outputs email and password
   - Admin exists in database with is_admin=true
 - **Side effects**: Creates and deletes test admin
 - **Runtime**: ~10 seconds
 
-### 
-- **Tests**: Google Drive sync functionality
+### `test-sync-to-gdrive.sh`
+- **Tests**: Google Drive sync functionality (`sync-to-gdrive.sh`)
 - **Verifies**:
   - Sync runs (may skip if GDrive not configured)
-  - Status file  is created
+  - Status file `.last_sync_status` is created
   - Status file contains valid timestamp or error
 - **Side effects**: Uploads backups to Google Drive (if configured)
 - **Runtime**: ~60 seconds (or instant if not configured)
 
 ## Prerequisites
 
-- Docker containers must be running: \033[0;34mStarting containers...\033[0m
-docker compose up -d
+- Docker containers must be running: `make start`
 - Database must be initialized with data
-- For : Google Drive must be configured ([2025-11-05 23:24:04] [0;34m╔═══════════════════════════════════════════════════════════════[0m
-[2025-11-05 23:24:04] [0;34m║      Google Drive Initialization & Validation                ║[0m
-[2025-11-05 23:24:04] [0;34m╚═══════════════════════════════════════════════════════════════[0m
-
-[2025-11-05 23:24:04] [0;31m✗ Google Drive is not enabled[0m
-[2025-11-05 23:24:04] [1;33mSet GDRIVE_ENABLED=true in .env[0m)
+- For `test-sync-to-gdrive`: Google Drive must be configured (`make init-gdrive`)
 
 ## Test Philosophy
 
@@ -73,15 +59,14 @@ These are **integration tests**, not unit tests:
 
 ## Adding New Tests
 
-1. Create  in this directory
-2. Make it executable: 
+1. Create `test-[feature].sh` in this directory (use hyphens, not underscores)
+2. Make it executable: `chmod +x test-[feature].sh`
 3. Follow the pattern:
-   - Set  variable
+   - Set `TEST_NAME` variable
    - Echo progress messages
-   - Use  for success,  for failure
+   - Use `exit 0` for success, `exit 1` for failure
    - Clean up any test data
-4. Add Makefile target (optional)
-5. Tests will automatically run via 
+4. Tests will automatically run via `make test`
 
 ## Example Test Structure
 
@@ -89,19 +74,19 @@ These are **integration tests**, not unit tests:
 #!/bin/bash
 set -e
 
-TEST_NAME=My Feature
-echo Testing: ${TEST_NAME}
+TEST_NAME="My Feature"
+echo "Testing: ${TEST_NAME}"
 
 # Setup
-echo  → Setting up test...
+echo "  → Setting up test..."
 
 # Test
-echo  → Running test...
+echo "  → Running test..."
 if [[ condition ]]; then
-    echo  ✓ Test passed: Description
+    echo "  ✓ Test passed: Description"
     exit 0
 else
-    echo  ✗ Test failed: Description
+    echo "  ✗ Test failed: Description"
     exit 1
 fi
 
