@@ -42,11 +42,21 @@ make test
 - **Side effects**: Uploads backups to Google Drive (if configured)
 - **Runtime**: ~60 seconds (or instant if not configured)
 
+### `test-init-gdrive.sh`
+- **Tests**: Google Drive initialization (`init-gdrive.sh`)
+- **Verifies**:
+  - Script loads .env configuration
+  - Folder structure is created ({environment}/backups, {environment}/uploads)
+  - Test files are uploaded successfully
+  - Script completes with success message
+- **Side effects**: Creates folders and test files in Google Drive
+- **Runtime**: ~60 seconds (skips if GDrive not configured)
+
 ## Prerequisites
 
 - Docker containers must be running: `make start`
 - Database must be initialized with data
-- For `test-sync-to-gdrive`: Google Drive must be configured (`make init-gdrive`)
+- For `test-sync-to-gdrive` and `test-init-gdrive`: Google Drive must be configured in .env (`GDRIVE_ENABLED=true`, `GDRIVE_CREDENTIALS`, `GDRIVE_FOLDER_ID`)
 
 ## Test Philosophy
 
