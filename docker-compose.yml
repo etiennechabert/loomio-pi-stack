@@ -218,6 +218,12 @@ services:
       - netdata-config:/etc/netdata
       - netdata-lib:/var/lib/netdata
       - netdata-cache:/var/cache/netdata
+      # Mount custom health alarms
+      - ./monitoring/netdata/health.d:/etc/netdata/health.d:ro
+      # Mount custom collectors
+      - ./monitoring/netdata/custom-collectors:/etc/netdata/custom-collectors:ro
+      # Mount backup directory for monitoring
+      - ./production/backups:/host/production/backups:ro
       # Mount netdata.conf to disable cloud
       - ./monitoring/netdata/netdata.conf:/etc/netdata/netdata.conf:ro
     ports:
