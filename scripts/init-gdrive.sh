@@ -23,6 +23,16 @@ log "${BLUE}║      Google Drive Initialization & Validation                ║
 log "${BLUE}╚═══════════════════════════════════════════════════════════════${NC}"
 echo ""
 
+# Load environment variables
+if [ -f .env ]; then
+    set -a
+    . .env
+    set +a
+else
+    log "${RED}✗ .env file not found${NC}"
+    exit 1
+fi
+
 # Check if Google Drive is enabled
 if [ "${GDRIVE_ENABLED}" != "true" ]; then
     log "${RED}✗ Google Drive is not enabled${NC}"
