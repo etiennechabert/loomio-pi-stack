@@ -1,5 +1,5 @@
 services:
-  # PostgreSQL Database (RAM Mode - Production)
+  # PostgreSQL Database
   db:
     image: postgres:15-alpine
     container_name: loomio-db
@@ -9,8 +9,6 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-loomio}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     tmpfs:
-      # Store entire PostgreSQL data directory in RAM
-      # No size limit - defaults to 50% of system RAM
       - /var/lib/postgresql/data:mode=0700
     networks:
       - loomio-network
@@ -20,14 +18,13 @@ services:
       timeout: 5s
       retries: 5
 
-  # Redis for background jobs (RAM Mode - No Persistence)
+  # Redis for background jobs
   redis:
     image: redis:7-alpine
     container_name: loomio-redis
     restart: unless-stopped
     command: redis-server --save "" --appendonly no
     tmpfs:
-      # Store Redis data in RAM
       - /data:mode=0755
     networks:
       - loomio-network
@@ -64,6 +61,7 @@ services:
       - app-logs:/loomio/log
       - ./scripts:/scripts:ro
       # Custom Devise email templates
+      - ./custom-views/devise:/loomio/app/views/devise:ro
     ports:
       - "${LOOMIO_PORT:-3000}:3000"
     networks:
@@ -103,48 +101,53 @@ services:
       - app-tmp:/loomio/tmp
       - app-logs:/loomio/log
       # Custom Devise email templates
+      - ./custom-views/devise:/loomio/app/views/devise:ro
     networks:
       - loomio-network
 
-  # Channels Service (Real-time)
+  # Loomio Channels (realtime notifications)
   channels:
-    image: loomio/loomio:master
+    image: loomio/loomio_channel_server:master
     container_name: loomio-channels
-    restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    env_file:
-      - .env
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-loomio}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-loomio_production}
-      REDIS_URL: redis://redis:6379
-      RAILS_ENV: ${RAILS_ENV:-production}
-      RACK_ENV: ${RACK_ENV:-production}
-      TASK: channels
-    command: bundle exec puma -C config/puma_cable.rb
-    volumes:
-      - app-tmp:/loomio/tmp
-      - app-logs:/loomio/log
-    networks:
-      - loomio-network
-
-  # Hocuspocus Service (Collaborative Editing)
-  hocuspocus:
-    image: loomio/loomio-hocuspocus:latest
-    container_name: loomio-hocuspocus
     restart: unless-stopped
     depends_on:
       - redis
     environment:
       REDIS_URL: redis://redis:6379
-      PORT: 4000
+      APP_URL: http://app:3000
+      CANONICAL_HOST: ${CANONICAL_HOST}
+      PUBLIC_APP_URL: http://localhost:3000
+      FORCE_SSL: "false"
+    ports:
+      - "${CHANNELS_PORT:-5000}:5000"
     networks:
       - loomio-network
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:4000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:5000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Hocuspocus (collaborative editing)
+  hocuspocus:
+    image: loomio/loomio_channel_server:master
+    container_name: loomio-hocuspocus
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-loomio}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-loomio_production}
+      LOOMIO_HMAC_KEY: ${LOOMIO_HMAC_KEY}
+      APP_URL: http://app:3000
+      PORT: 4000
+    command: npm run hocuspocus
+    ports:
+      - "${HOCUSPOCUS_PORT:-4000}:4000"
+    networks:
+      - loomio-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -155,10 +158,7 @@ services:
     container_name: loomio-backup
     restart: unless-stopped
     depends_on:
-      db:
-        condition: service_healthy
-    env_file:
-      - .env
+      - db
     environment:
       DB_HOST: db
       DB_PORT: 5432
@@ -171,19 +171,20 @@ services:
       GDRIVE_ENABLED: ${GDRIVE_ENABLED:-false}
       GDRIVE_TOKEN: ${GDRIVE_TOKEN}
       GDRIVE_FOLDER_ID: ${GDRIVE_FOLDER_ID}
+      RAILS_ENV: ${RAILS_ENV:-production}
     volumes:
-      # Backups stored on disk at production/backups/
+      # Backups stored on disk (not RAM) at production/backups/
       - ./production/backups:/backups
-      # User uploads for backup/sync
-      - ./data/uploads/system:/uploads/system:ro
-      - ./data/uploads/storage:/uploads/storage:ro
-      - ./data/uploads/files:/uploads/files:ro
+      # User uploads for backup
+      - ./data/uploads/storage:/loomio/storage:ro
+      - ./data/uploads/system:/loomio/public/system:ro
+      - ./data/uploads/files:/loomio/public/files:ro
       # Google Drive credentials
       - ./data/gdrive:/gdrive
     networks:
       - loomio-network
 
-  # Database Admin Interface
+  # Database Administration Interface
   adminer:
     image: adminer:latest
     container_name: loomio-adminer
@@ -192,35 +193,47 @@ services:
       - db
     environment:
       ADMINER_DEFAULT_SERVER: db
-      ADMINER_DESIGN: dracula
+      ADMINER_DESIGN: nette
     ports:
-      - "${ADMINER_PORT:-8080}:8080"
+      - "${ADMINER_PORT:-8081}:8080"
     networks:
       - loomio-network
-    profiles:
-      - admin
 
-  # Netdata Monitoring
+  # System Monitoring
   netdata:
     image: netdata/netdata:latest
     container_name: loomio-netdata
     restart: unless-stopped
-    pid: host
+    hostname: loomio-monitor
     cap_add:
       - SYS_PTRACE
-      - SYS_ADMIN
     security_opt:
       - apparmor:unconfined
+    environment:
+      DOCKER_HOST: /var/run/docker.sock
+      # Disable Netdata Cloud for local/standalone use
+      NETDATA_DISABLE_CLOUD: 1
+      NETDATA_CLAIM_TOKEN: ${NETDATA_CLAIM_TOKEN}
+      NETDATA_CLAIM_URL: https://app.netdata.cloud
+      NETDATA_CLAIM_ROOMS: ${NETDATA_CLAIM_ROOMS}
+      # Email alerts configuration
+      ALERT_EMAIL: ${ALERT_EMAIL}
+      SMTP_SERVER: ${SMTP_SERVER}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USERNAME: ${SMTP_USERNAME}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
     volumes:
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - netdata-config:/etc/netdata
       - netdata-lib:/var/lib/netdata
       - netdata-cache:/var/cache/netdata
-      # Mount custom health alarms
+      - /etc/passwd:/host/etc/passwd:ro
+      - /etc/group:/host/etc/group:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Custom health alarms
       - ./monitoring/netdata/health.d:/etc/netdata/health.d:ro
-      # Mount custom collectors
+      # Custom collectors
       - ./monitoring/netdata/custom-collectors:/etc/netdata/custom-collectors:ro
       # Mount backup directory for monitoring
       - ./production/backups:/host/production/backups:ro
@@ -261,6 +274,8 @@ services:
       - cloudflare
 
 volumes:
+  db-data:
+  redis-data:
   app-plugins:
   app-import:
   app-tmp:
