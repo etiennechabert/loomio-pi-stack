@@ -1,7 +1,7 @@
 # Loomio Pi Stack - Production RAM Mode (Raspberry Pi)
 SHELL := /bin/bash
 
-.PHONY: help start stop restart status logs backup restore sync-gdrive update-images migrate-db create-admin health rails-console db-console init-env init-gdrive clean
+.PHONY: help start stop restart status logs backup restore sync-gdrive update-images migrate-db create-admin health rails-console db-console init-env init-gdrive clean backup-info
 
 # Default target
 .DEFAULT_GOAL := help
@@ -73,7 +73,7 @@ migrate-db: ## Run database migrations (manual)
 	@printf "$(BLUE)Running migrations...$(NC)\n"
 	docker exec loomio-app bundle exec rake db:migrate
 
-create-backup: ## Create database backup locally
+create-backup: ## Create manual backup with reason (never auto-deleted)
 	@./scripts/backup-db.sh
 
 upload-to-gdrive: ## Upload backups AND uploads to Google Drive
@@ -84,6 +84,21 @@ restore-from-gdrive: ## Download backup + uploads from Google Drive
 
 restore-backup: ## Restore database from local backup (interactive)
 	@./scripts/restore-db-manual.sh
+
+backup-info: ## Show backup system information
+	@printf "$(BLUE)Multi-Tier Backup System$(NC)\n"
+	@echo ""
+	@echo "Automatic Backups (scheduled):"
+	@echo "  • Hourly:  Every hour (48h retention)"
+	@echo "  • Daily:   2 AM (30d retention)"
+	@echo "  • Monthly: 1st of month at 3 AM (12mo retention)"
+	@echo ""
+	@echo "Manual Backups:"
+	@echo "  • Run: make create-backup"
+	@echo "  • Requires reason/description"
+	@echo "  • Never automatically deleted"
+	@echo ""
+	@echo "All backups sync to Google Drive automatically"
 
 ##@ Admin Management
 
