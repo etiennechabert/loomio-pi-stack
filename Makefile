@@ -76,9 +76,6 @@ migrate: ## Run database migrations (manual)
 backup: ## Create manual database backup
 	@./scripts/backup-db.sh
 
-download-last-backup: ## Download latest backup from Google Drive
-	@./scripts/download-last-backup.sh
-
 restore-from-gdrive: ## Complete disaster recovery (backup + uploads from GDrive)
 	@./scripts/restore-from-gdrive.sh
 
