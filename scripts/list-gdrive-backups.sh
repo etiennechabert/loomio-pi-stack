@@ -86,11 +86,15 @@ if backups:
     latest = backups[0]
 
     # Parse modification time
-    mod_time = datetime.fromisoformat(latest[\"ModTime\"].replace(\"Z\", \"+00:00\"))
-    size_mb = latest[\"Size\"] / (1024 * 1024)
+    name = latest.get(\"Name\", \"\")
+    mod_time_str = latest.get(\"ModTime\", \"\")
+    size = latest.get(\"Size\", 0)
 
-    print(f\"{latest['Name']}\")
-    print(f\"{mod_time.strftime('%Y-%m-%d %H:%M:%S UTC')}\")
+    mod_time = datetime.fromisoformat(mod_time_str.replace(\"Z\", \"+00:00\"))
+    size_mb = size / (1024 * 1024)
+
+    print(name)
+    print(mod_time.strftime('%Y-%m-%d %H:%M:%S UTC'))
     print(f\"{size_mb:.2f}\")
 " | {
             read NAME
