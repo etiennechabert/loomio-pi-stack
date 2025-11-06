@@ -38,6 +38,13 @@ restart: ## Restart all containers
 	docker compose restart
 	@printf "$(GREEN)✓ Containers restarted$(NC)\n"
 
+rebuild: ## Rebuild and restart containers (use after code changes)
+	@printf "$(BLUE)Rebuilding containers...$(NC)\n"
+	docker compose build
+	@printf "$(BLUE)Restarting containers...$(NC)\n"
+	docker compose up -d
+	@printf "$(GREEN)✓ Containers rebuilt and restarted$(NC)\n"
+
 status: ## Show container status
 	@docker compose ps
 
