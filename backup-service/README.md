@@ -5,13 +5,13 @@ This backup service implements a comprehensive multi-tier backup strategy for Lo
 ## Backup Types
 
 ### 1. Hourly Backups
-- **Schedule**: Every hour (`0 * * * *`)
+- **Schedule**: Hours 1-23 (`0 1-23 * * *`)
 - **Retention**: 48 hours (last 48 backups)
 - **Format**: `loomio-hourly-YYYYMMDD-HHmmss.sql.enc`
 - **Purpose**: Quick recovery from recent issues
 
 ### 2. Daily Backups
-- **Schedule**: 2 AM daily (`0 2 * * *`)
+- **Schedule**: 2 AM on days 2-31 (`0 2 2-31 * *`)
 - **Retention**: 30 days
 - **Format**: `loomio-daily-YYYYMMDD.sql.enc`
 - **Purpose**: Medium-term recovery
