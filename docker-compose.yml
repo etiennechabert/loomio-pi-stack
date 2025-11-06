@@ -8,11 +8,12 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-loomio_production}
       POSTGRES_USER: ${POSTGRES_USER:-loomio}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    # Volumes moved to mode-specific overlays (dev uses volumes, ram uses tmpfs)
+    tmpfs:
+      - /var/lib/postgresql/data:mode=0700
     networks:
       - loomio-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-loomio}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-loomio} -d ${POSTGRES_DB:-loomio_production}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -22,7 +23,9 @@ services:
     image: redis:7-alpine
     container_name: loomio-redis
     restart: unless-stopped
-    # Command and volumes moved to mode-specific overlays
+    command: redis-server --save "" --appendonly no
+    tmpfs:
+      - /data:mode=0755
     networks:
       - loomio-network
     healthcheck:
@@ -46,19 +49,19 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-loomio}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-loomio_production}
       REDIS_URL: redis://redis:6379
-      RAILS_ENV: ${RAILS_ENV:-development}
-      RACK_ENV: ${RACK_ENV:-development}
+      RAILS_ENV: ${RAILS_ENV:-production}
+      RACK_ENV: ${RACK_ENV:-production}
     volumes:
       - ./data/uploads/system:/loomio/public/system
       - ./data/uploads/storage:/loomio/storage
       - ./data/uploads/files:/loomio/public/files
+      - ./config/locales.yml:/loomio/config/locales.yml:ro
       - app-plugins:/loomio/plugins
       - app-import:/import
       - app-tmp:/loomio/tmp
       - app-logs:/loomio/log
       - ./scripts:/scripts:ro
       # Custom Devise email templates
-      - ./custom-views/devise:/loomio/app/views/devise:ro
     ports:
       - "${LOOMIO_PORT:-3000}:3000"
     networks:
@@ -85,8 +88,8 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-loomio}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-loomio_production}
       REDIS_URL: redis://redis:6379
-      RAILS_ENV: ${RAILS_ENV:-development}
-      RACK_ENV: ${RACK_ENV:-development}
+      RAILS_ENV: ${RAILS_ENV:-production}
+      RACK_ENV: ${RACK_ENV:-production}
       TASK: worker
     command: bundle exec sidekiq
     volumes:
@@ -98,7 +101,6 @@ services:
       - app-tmp:/loomio/tmp
       - app-logs:/loomio/log
       # Custom Devise email templates
-      - ./custom-views/devise:/loomio/app/views/devise:ro
     networks:
       - loomio-network
 
@@ -168,13 +170,16 @@ services:
       GDRIVE_ENABLED: ${GDRIVE_ENABLED:-false}
       GDRIVE_TOKEN: ${GDRIVE_TOKEN}
       GDRIVE_FOLDER_ID: ${GDRIVE_FOLDER_ID}
-      RAILS_ENV: ${RAILS_ENV:-development}
+      RAILS_ENV: ${RAILS_ENV:-production}
     volumes:
-      # Backup location and db-data mount moved to mode-specific overlays
-      # User uploads folders are needed in both dev and RAM modes
+      # Backups stored on disk (not RAM) at data/production/backups/
+      - ./data/production/backups:/backups
+      # User uploads for backup
       - ./data/uploads/storage:/loomio/storage:ro
       - ./data/uploads/system:/loomio/public/system:ro
       - ./data/uploads/files:/loomio/public/files:ro
+      # Google Drive credentials
+      - ./data/gdrive:/gdrive
     networks:
       - loomio-network
 
@@ -225,7 +230,12 @@ services:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./monitoring/netdata:/etc/netdata/custom-config:ro
+      # Custom health alarms
+      - ./monitoring/netdata/health.d:/etc/netdata/health.d:ro
+      # Custom collectors
+      - ./monitoring/netdata/custom-collectors:/etc/netdata/custom-collectors:ro
+      # Mount backup directory for monitoring
+      - ./data/production/backups:/host/data/production/backups:ro
       # Mount netdata.conf to disable cloud
       - ./monitoring/netdata/netdata.conf:/etc/netdata/netdata.conf:ro
     ports:
