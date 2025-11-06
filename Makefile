@@ -1,7 +1,7 @@
 # Loomio Pi Stack - Production RAM Mode (Raspberry Pi)
 SHELL := /bin/bash
 
-.PHONY: help start stop restart status logs backup restore sync-gdrive update-images migrate-db create-admin health rails-console db-console init-env init-gdrive destroy backup-info
+.PHONY: help start stop restart status logs backup restore sync-gdrive update-images migrate-db create-admin health rails-console db-console init-env init-gdrive destroy backup-info sidekiq-status
 
 # Default target
 .DEFAULT_GOAL := help
@@ -112,9 +112,13 @@ create-admin: ## Create admin user (prints password directly)
 
 ##@ Health & Monitoring
 
-
 health: ## Show container status
 	@docker compose ps
+
+sidekiq-status: ## Show Sidekiq queue status and dead jobs
+	@printf "$(BLUE)Sidekiq Status$(NC)\n"
+	@printf "$(BLUE)═══════════════════════════════════════════════════$(NC)\n"
+	@docker exec loomio-app bundle exec rails runner /scripts/ruby/sidekiq_status.rb
 
 ##@ Console Access
 
