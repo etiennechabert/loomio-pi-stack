@@ -8,9 +8,9 @@ Your Loomio instance is configured as a **private, invite-only community**. Publ
 
 1. **Create your first admin account:**
    ```bash
-   make add-admin
+   make create-admin
    ```
-   Enter an email (can be fake like `admin@localhost`) and name. Save the displayed password.
+   Follow the prompts to enter email and name. Save the displayed password.
 
 2. **Log in to Loomio web interface** with the admin account
 
@@ -27,9 +27,9 @@ That's it! Users receive emails with password setup instructions and security gu
 
 ## 🎯 Perfect Workflow
 
-This setup implements your ideal onboarding flow:
+This setup implements the ideal onboarding flow using the web interface:
 
-1. **Admin enters email + name** (`make add-user`)
+1. **Admin invites user via web interface** (enter email + optional message)
 2. **User receives email** with password setup link (automatic)
 3. **User sets own password** on first visit (forced)
 
@@ -93,80 +93,36 @@ Loomio has built-in web-based user invitation that's perfect for day-to-day user
 
 ### Alternative: Command-Line User Creation
 
-For initial setup, automation, or when you need to create users without adding them to a group yet:
+For initial setup or advanced use cases:
 
-#### Method A: Makefile Command
+#### Method A: Create Admin User
 
 ```bash
-# Create regular user
-make add-user
-# Prompts for: email and name
-# System automatically sends password setup email
-
-# Create admin user (displays password in console)
-make add-admin
-# Prompts for: email and name
-# Displays password in console - no email sent
+# Create admin user (interactive)
+make create-admin
 ```
 
-**Output for `make add-user`:**
-```
-✓ User Created Successfully!
-✓ Password setup email sent to: user@example.com
+**What you'll be asked:**
+- Email address (can be fake like `admin@localhost`)
+- Full name
 
-Next steps:
-  1. User checks email inbox
-  2. User clicks 'Set Password' link
-  3. User creates their own password
-  4. User can now log in
-
-Note: If email not received, check SMTP configuration
-```
-
-**Output for `make add-admin`:**
-```
-✓ Admin User Created Successfully!
-
-Email: admin@example.com
-
-🔗 Password Setup Link:
-http://localhost:3000/users/password/edit?reset_password_token=gg2zHRJ2bKKebkwMWYBs
-
-⚠️  IMPORTANT:
-   1. Open this link in your browser
-   2. Set your own secure password
-   3. Link expires in 6 hours
-
-💡 This link will only be shown once!
-```
-
-**Why different for admins?**
-- Admin accounts are typically created with non-existent email addresses (e.g., `admin@localhost`)
-- A password reset link is displayed directly in the console for immediate use
-- No email is sent since the email address may not be real
-- The admin is forced to set their own password (more secure than displaying a generated password)
-- After setting the password, the admin can log in and use the web interface to invite other users
-
-**What happens:**
-- Admin enters **only email + name**
-- System creates account with random unusable password
-- System sends **password reset email** automatically (with security recommendations)
-- User receives email with:
-  - Secure token link to set password
-  - **Security guidelines** emphasizing NOT reusing passwords
-  - Password best practices (16+ chars, passphrases, etc.)
-  - Explanation of why unique passwords matter for self-hosted platforms
-- User clicks link and **sets their own password**
-- User is **forced to create password** (can't skip)
-
-📧 **Email template:** The password setup email includes comprehensive security guidance. See `custom-views/devise/mailer/reset_password_instructions.html.erb` for details.
+**What you'll receive:**
+- A generated temporary password displayed in the console
+- You can log in immediately with these credentials
+- Change the password after first login via the web interface
 
 #### Method B: Rails Console (Advanced)
 
+For creating regular users or more control, use the Rails console:
+
 ```bash
+# Access Rails console
+make rails-console
+
+# Or directly:
 docker compose run --rm app rails c
 
-# Create regular user
+# Create regular user with password
 user = User.create!(
   email: 'user@example.com',
   name: 'John Doe',
@@ -175,8 +131,9 @@ user = User.create!(
   email_verified: true,
   is_admin: false
 )
+puts "User created: #{user.email}"
 
-# Create admin user
+# Create admin user with password
 admin = User.create!(
   email: 'admin@example.com',
   name: 'Jane Admin',
@@ -185,38 +142,16 @@ admin = User.create!(
   email_verified: true,
   is_admin: true
 )
+puts "Admin created: #{admin.email}"
+
+# List all users
+User.all.each do |u|
+  admin_flag = u.is_admin? ? "[ADMIN]" : ""
+  puts "#{u.email} - #{u.name} #{admin_flag}"
+end
 ```
 
-### Step 2: User Receives Email
-
-The user automatically receives an email with subject: **"Reset password instructions"**
-
-**Email contains:**
-- Personalized greeting
-- Link to set password (with secure token)
-- **⚠️ Security guidelines section** with:
-  - **Emphasis on NOT reusing passwords from other platforms**
-  - Recommendation to use 16+ character passwords
-  - Passphrase examples (e.g., "correct-horse-battery-staple")
-  - Explanation of why unique passwords matter for self-hosted infrastructure
-- Link expires in 6 hours for security
-- No temporary password to share
-
-**No admin action needed** - email is sent automatically with all security guidance included!
-
-### Step 3: User Sets Password
-
-1. User clicks "Set Password" link in email
-2. Arrives at password creation page
-3. Enters new password (must meet requirements)
-4. Confirms password
-5. **Automatically logged in** after setting password
-
-**Security benefits:**
-- ✅ User creates their own secure password
-- ✅ No temporary password to share/leak
-- ✅ Token-based, expires automatically
-- ✅ User forced to set password (cannot skip)
+**Note:** When creating users via Rails console, you must set a password manually. Share this password securely with the user, or have them reset it via the "Forgot password" link on the login page.
 
 ---
 
@@ -243,46 +178,55 @@ Users will receive an invitation email with a link to join the group.
 ### List All Users
 
 ```bash
-make list-users
-```
+# Access Rails console
+make rails-console
 
-**Output:**
-```
-Loomio Users:
-✓ admin@example.com - Jane Admin [ADMIN]
-✓ user1@example.com - John Doe
-✓ user2@example.com - Mary Smith
+# List all users
+User.all.each do |u|
+  admin_flag = u.is_admin? ? "[ADMIN]" : ""
+  last_login = u.last_sign_in_at ? u.last_sign_in_at.strftime("%Y-%m-%d") : "never"
+  puts "#{u.email} - #{u.name} #{admin_flag} (last login: #{last_login})"
+end
 ```
 
 ### Promote User to Admin
 
 ```bash
-docker compose run --rm app rails runner "
-  user = User.find_by(email: 'user@example.com')
-  user.update(is_admin: true)
-  puts 'User promoted to admin'
-"
+# Access Rails console
+make rails-console
+
+# Promote user to admin
+user = User.find_by(email: 'user@example.com')
+user.update(is_admin: true)
+puts "✓ #{user.email} is now an admin"
 ```
 
 ### Reset User Password
 
 ```bash
-docker compose run --rm app rails runner "
-  user = User.find_by(email: 'user@example.com')
-  new_password = SecureRandom.base64(16)
-  user.update(password: new_password, password_confirmation: new_password)
-  puts \"Password reset to: #{new_password}\"
-"
+# Access Rails console
+make rails-console
+
+# Reset password to a new value
+user = User.find_by(email: 'user@example.com')
+new_password = SecureRandom.base64(16)
+user.update(password: new_password, password_confirmation: new_password)
+puts "New password for #{user.email}: #{new_password}"
+puts "Share this password securely with the user"
 ```
+
+**Alternative:** Have the user use the "Forgot password?" link on the login page to reset their own password via email.
 
 ### Delete User
 
 ```bash
-docker compose run --rm app rails runner "
-  user = User.find_by(email: 'user@example.com')
-  user.destroy
-  puts 'User deleted'
-"
+# Access Rails console
+make rails-console
+
+# Delete user account
+user = User.find_by(email: 'user@example.com')
+user.destroy
+puts "✓ User #{user.email} deleted"
 ```
 
 ---
@@ -335,39 +279,35 @@ grep SMTP_ .env
 ### Quick Test
 
 ```bash
+# Access Rails console
+make rails-console
+
 # Test email sending
-docker compose run --rm app rails runner "
-  user = User.last
-  user.send_reset_password_instructions
-  puts 'Email sent!'
-"
+user = User.last
+user.send_reset_password_instructions
+puts "Password reset email sent to #{user.email}"
 ```
 
 ### Configure SMTP
 
-**Required before using add-user/add-admin!**
+**Required for email-based password resets and invitations!**
 
 See [SMTP_SETUP.md](../SMTP_SETUP.md) for detailed setup instructions.
 
 ### Fallback (if SMTP not configured)
 
-If SMTP is not set up yet, you can manually set passwords:
+If SMTP is not set up yet, you can manually set passwords via Rails console:
 
 ```bash
-# Create user
-make add-user
-# Enter email and name
-# Email will fail but user is created
+# Access Rails console
+make rails-console
 
-# Manually set password
-docker compose run --rm app rails runner "
-  user = User.find_by(email: 'user@example.com')
-  password = 'SecurePassword123'
-  user.update(password: password, password_confirmation: password)
-  puts \"Password set to: #{password}\"
-"
-
-# Share password securely with user
+# Set password for a user
+user = User.find_by(email: 'user@example.com')
+password = 'SecurePassword123'
+user.update(password: password, password_confirmation: password)
+puts "Password set to: #{password}"
+puts "Share password securely with user"
 ```
 
 ---
@@ -394,11 +334,11 @@ This is a **security concern** in invite-only mode where admins trust users to c
 
 #### Recommended Password Practices
 
-When onboarding users via `make add-user`:
+When onboarding users via web interface invitations:
 
 **What the system does automatically:**
-- ✅ Generates random unusable password for initial account creation
-- ✅ Sends password reset email (token-based, expires in 6 hours)
+- ✅ Creates user account when invited to a group
+- ✅ Sends invitation email with password setup link
 - ✅ Forces user to create their own password
 - ✅ Stores password securely using bcrypt
 
@@ -409,16 +349,6 @@ When onboarding users via `make add-user`:
 - ✅ Avoid common passwords, dictionary words, personal information
 - ❌ Don't reuse passwords from other sites
 - ❌ Don't use simple patterns like `Password123`
-
-✅ **Good news:** Password security guidance is **automatically included** in the password setup email!
-
-The custom email template (`custom-views/devise/mailer/reset_password_instructions.html.erb`) contains:
-- Clear warning NOT to reuse passwords from other platforms
-- Recommendation for 16+ character passwords
-- Passphrase examples
-- Explanation of why this matters for self-hosted infrastructure
-
-**No manual communication needed** - users receive comprehensive security guidance automatically when you run `make add-user`.
 
 #### Password Strength Improvements (Optional)
 
@@ -456,9 +386,9 @@ For most private communities, **educating users** about password best practices 
 
 ### 2. Secure Communication
 
-**Note**: With the automated email workflow (`make add-user`), you NO LONGER need to manually share passwords! Users receive password setup links via email.
+**Note**: With web-based invitations, users receive password setup links via email automatically.
 
-If you need to share other sensitive information:
+If you need to share passwords (e.g., when created via Rails console):
 - ✅ Use encrypted channels (password manager links, Signal, encrypted email)
 - ❌ Don't send via plain text email or chat
 - ❌ Don't write on paper or whiteboards
@@ -466,12 +396,13 @@ If you need to share other sensitive information:
 ### 3. Regular Audits
 
 ```bash
+# Access Rails console
+make rails-console
+
 # Check inactive users (no login in 90 days)
-docker compose run --rm app rails runner "
-  User.where('last_sign_in_at < ?', 90.days.ago).each do |user|
-    puts \"#{user.email} - Last login: #{user.last_sign_in_at}\"
-  end
-"
+User.where('last_sign_in_at < ?', 90.days.ago).each do |user|
+  puts "#{user.email} - Last login: #{user.last_sign_in_at}"
+end
 ```
 
 ---
@@ -504,21 +435,22 @@ docker compose run --rm app rails runner "
 
 ---
 
-### Alternative: Command-Line Approach
+### Alternative: Create Admin First, Then Invite
 
-If you need to create a user without immediately adding them to a group:
+If setting up the system for the first time:
 
 ```bash
-# 1. Create user account
-make add-user
-# Enter: newuser@company.com, New User Name
-# System automatically sends password setup email
+# 1. Create admin account
+make create-admin
+# Enter: admin@company.com, Admin Name
+# Note the displayed password
 
-# 2. User receives email
-# User clicks link and sets their own password
+# 2. Log in as admin
+# Use the credentials from step 1
 
-# 3. Later: Add to groups via web interface
+# 3. Invite users via web interface
 # Navigate to group → Invite → newuser@company.com
+# User receives email with password setup link
 ```
 
 ### Offboarding Team Member
@@ -527,28 +459,31 @@ make add-user
 # 1. Remove from all groups (via web interface)
 # Go to each group → Members → Remove user
 
-# 2. Delete user account
-docker compose run --rm app rails runner "
-  user = User.find_by(email: 'olduser@company.com')
-  user.destroy
-  puts 'User removed'
-"
+# 2. Delete user account via Rails console
+make rails-console
+
+# Then in Rails console:
+user = User.find_by(email: 'olduser@company.com')
+user.destroy
+puts "✓ User removed"
 ```
 
 ### Temporary Access
 
 ```bash
-# 1. Create user with expiration note
-make add-user
-# Enter: contractor@company.com, Contractor Name
+# 1. Invite user via web interface
+# Navigate to group → Invite → contractor@company.com
+# User receives email and sets password
 
 # 2. Set reminder to remove after project
 # Add to calendar or task manager
 
-# 3. Remove when complete
-docker compose run --rm app rails runner "
-  User.find_by(email: 'contractor@company.com').destroy
-"
+# 3. Remove when complete via Rails console
+make rails-console
+
+# Then in Rails console:
+User.find_by(email: 'contractor@company.com').destroy
+puts "✓ Temporary user removed"
 ```
 
 ---
@@ -557,9 +492,9 @@ docker compose run --rm app rails runner "
 
 ### Users Report "Signup Disabled" Error
 
-**This is expected behavior.** Users cannot self-register. Admins must create accounts.
+**This is expected behavior.** Users cannot self-register. Admins must invite users.
 
-**Solution**: Admin creates account via `make add-user`, shares credentials.
+**Solution**: Admin invites user via web interface (Group → Invite), user receives email with password setup link.
 
 ### User Can't Reset Password
 
@@ -567,15 +502,18 @@ docker compose run --rm app rails runner "
 
 **Solution**: Configure email settings (see [SMTP_SETUP.md](../SMTP_SETUP.md))
 
-**Workaround**: Admin resets password manually:
+**Workaround**: Admin resets password manually via Rails console:
 
 ```bash
-docker compose run --rm app rails runner "
-  user = User.find_by(email: 'user@example.com')
-  new_password = SecureRandom.base64(16)
-  user.update(password: new_password, password_confirmation: new_password)
-  puts \"New password: #{new_password}\"
-"
+# Access Rails console
+make rails-console
+
+# Reset password
+user = User.find_by(email: 'user@example.com')
+new_password = SecureRandom.base64(16)
+user.update(password: new_password, password_confirmation: new_password)
+puts "New password: #{new_password}"
+puts "Share this password securely with the user"
 ```
 
 ### Admin Accidentally Deleted Own Account
@@ -589,7 +527,7 @@ docker compose run --rm app rails runner "
 make restore-db
 
 # Or create new admin from scratch
-make add-admin
+make create-admin
 ```
 
 ### Need to Re-Enable Public Signup (Testing)
