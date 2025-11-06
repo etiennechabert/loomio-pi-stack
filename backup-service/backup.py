@@ -35,7 +35,7 @@ RAILS_ENV = os.getenv('RAILS_ENV', 'production')
 
 # Backup type retention rules (in hours for hourly, minutes for minute, days for others)
 RETENTION_RULES = {
-    'minute': 30,    # 30 minutes (testing only)
+    'minute': 5,     # 5 minutes (testing only - quick feedback)
     'hourly': 48,    # 48 hours (keep last 48 backups)
     'daily': 30,     # 30 days
     'monthly': 365,  # 12 months (365 days)
