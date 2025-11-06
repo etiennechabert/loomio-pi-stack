@@ -7,7 +7,7 @@ Thank you for considering contributing to the Loomio Pi Stack! This document out
 ### Reporting Bugs
 
 Before submitting a bug report:
-- Check existing [issues](https://github.com/yourusername/loomio-pi-stack/issues)
+- Check existing [issues](https://github.com/etiennechabert/loomio-pi-stack/issues)
 - Verify you're using the latest version
 - Test with default configuration
 
@@ -30,7 +30,7 @@ Enhancement suggestions are welcome! Please:
 
 1. **Fork the repository**
    ```bash
-   git clone https://github.com/yourusername/loomio-pi-stack.git
+   git clone https://github.com/etiennechabert/loomio-pi-stack.git
    ```
 
 2. **Create a feature branch**
@@ -277,7 +277,7 @@ We'll respond within 48 hours.
 
 ## Questions?
 
-- Open a [Discussion](https://github.com/yourusername/loomio-pi-stack/discussions)
+- Open a [Discussion](https://github.com/etiennechabert/loomio-pi-stack/discussions)
 - Join Loomio community
 - Check existing documentation
 

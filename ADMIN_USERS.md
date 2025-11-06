@@ -4,90 +4,23 @@ Complete guide to creating and managing admin users in Loomio.
 
 ## Table of Contents
 - [Overview](#overview)
-- [Method 1: Auto-Create via Environment Variables](#method-1-auto-create-via-environment-variables)
-- [Method 2: Interactive Creation](#method-2-interactive-creation)
-- [Method 3: Web Signup + Promotion](#method-3-web-signup--promotion)
-- [Method 4: Rails Console](#method-4-rails-console)
+- [Method 1: Interactive Creation](#method-1-interactive-creation)
+- [Method 2: Rails Console](#method-2-rails-console)
 - [Managing Users](#managing-users)
 - [Troubleshooting](#troubleshooting)
 
 ## Overview
 
-There are four ways to create admin users in Loomio:
+There are two ways to create admin users in Loomio:
 
-| Method | Use Case | Difficulty | Automated? |
-|--------|----------|------------|------------|
-| ENV Variables | Production deployments | ⭐ Easy | ✅ Yes |
-| Interactive CLI | Manual setup | ⭐⭐ Medium | ❌ No |
-| Web + Promote | Testing/Development | ⭐ Easy | ❌ No |
-| Rails Console | Advanced users | ⭐⭐⭐ Hard | ❌ No |
+| Method | Use Case | Difficulty |
+|--------|----------|------------|
+| Interactive CLI | Quick admin creation | ⭐ Easy |
+| Rails Console | Advanced operations | ⭐⭐⭐ Hard |
 
 ---
 
-## Method 1: Auto-Create via Environment Variables
-
-**Best for:** Production deployments, automated setups, Docker Compose stacks
-
-This method automatically creates an admin user on first startup if credentials are provided in the `.env` file.
-
-### Setup
-
-**1. Edit your `.env` file:**
-
-```bash
-nano .env
-```
-
-**2. Add admin credentials:**
-
-```bash
-# =============================================================================
-# ADMIN USER (Optional - Auto-create on first startup)
-# =============================================================================
-
-# Automatically create an admin user on first startup
-LOOMIO_ADMIN_EMAIL=admin@example.com
-LOOMIO_ADMIN_PASSWORD=your-secure-password-here
-LOOMIO_ADMIN_NAME=Admin User
-```
-
-**3. Initialize or restart:**
-
-```bash
-# For first-time setup
-make first-time-setup
-
-# Or if already running
-make auto-create-admin
-```
-
-### How It Works
-
-- Script runs automatically during `make first-time-setup`
-- Checks if user with that email already exists
-- If not, creates new user with admin privileges
-- If exists, promotes them to admin (if not already)
-- User is marked as email verified (no confirmation needed)
-
-### Advantages
-
-✅ Fully automated - no manual steps
-✅ Works with CI/CD pipelines
-✅ Consistent across deployments
-✅ Credentials stored securely in `.env`
-✅ Idempotent - safe to run multiple times
-
-### Security Notes
-
-⚠️ **Important:**
-- Never commit `.env` file to version control
-- Use strong passwords (20+ characters)
-- Change default password after first login
-- Restrict `.env` file permissions: `chmod 600 .env`
-
----
-
-## Method 2: Interactive Creation
+## Method 1: Interactive Creation
 
 **Best for:** Manual setup, one-off admin creation
 
@@ -135,64 +68,7 @@ Admin user created: john@example.com
 
 ---
 
-## Method 3: Web Signup + Promotion
-
-**Best for:** Testing, development, when you want to test email flow
-
-This is the traditional method - user signs up through the web interface, then gets promoted to admin.
-
-### Steps
-
-**1. Start Loomio:**
-
-```bash
-make start
-```
-
-**2. Open web interface:**
-
-```
-http://your-server-ip:3000
-```
-
-**3. Sign up for an account**
-- Click "Sign up"
-- Fill in email, name, password
-- Submit form
-- Check email for confirmation link
-- Click confirmation link
-
-**4. Promote to admin:**
-
-Choose one method:
-
-**Option A: Promote last user**
-```bash
-make make-admin
-```
-
-**Option B: Promote specific user**
-```bash
-make promote-user
-# Enter email when prompted
-```
-
-**Option C: List users first**
-```bash
-make list-users
-make promote-user
-```
-
-### When to Use
-
-- ✅ Testing email configuration
-- ✅ Demonstrating signup flow
-- ✅ Development environment
-- ❌ Production (use Method 1 instead)
-
----
-
-## Method 4: Rails Console
+## Method 2: Rails Console
 
 **Best for:** Advanced users, custom scenarios, troubleshooting
 
@@ -253,60 +129,56 @@ exit
 
 ## Managing Users
 
-### List All Users
-
-```bash
-make list-users
-```
-
-Output:
-```
-Loomio Users:
-✓ admin@example.com - Admin User [ADMIN]
-✓ john@example.com - John Doe
-✗ pending@example.com - Pending User
-```
-
-Legend:
-- `✓` = Email verified
-- `✗` = Email not verified
-- `[ADMIN]` = Admin privileges
-
-### Promote User to Admin
-
-```bash
-make promote-user
-```
-
-You'll be prompted for the email address.
-
-### Demote Admin to Regular User
+All user management operations require the Rails console:
 
 ```bash
 make rails-console
 ```
+
+### List All Users
+
+```ruby
+# List all users with admin status
+User.all.each do |u|
+  admin_badge = u.is_admin? ? '[ADMIN]' : ''
+  verified = u.email_verified? ? '✓' : '✗'
+  puts "#{verified} #{u.email} - #{u.name} #{admin_badge}"
+end
+```
+
+### List Only Admins
+
+```ruby
+User.where(is_admin: true).each do |u|
+  puts "#{u.email} - #{u.name}"
+end
+```
+
+### Promote User to Admin
+
+```ruby
+user = User.find_by(email: 'user@example.com')
+user.update(is_admin: true)
+puts "#{user.name} is now an admin"
+```
+
+### Demote Admin to Regular User
 
 ```ruby
 user = User.find_by(email: 'user@example.com')
 user.update(is_admin: false)
+puts "#{user.name} is no longer an admin"
 ```
 
 ### Delete User
 
-```bash
-make rails-console
-```
-
 ```ruby
 user = User.find_by(email: 'user@example.com')
 user.destroy
+puts "User deleted"
 ```
 
 ### Reset User Password
-
-```bash
-make rails-console
-```
 
 ```ruby
 user = User.find_by(email: 'user@example.com')
@@ -314,64 +186,48 @@ user.update(
   password: 'new-password',
   password_confirmation: 'new-password'
 )
+puts "Password updated for #{user.email}"
 ```
 
 ### Verify User Email Manually
 
-```bash
-make rails-console
-```
-
 ```ruby
 user = User.find_by(email: 'user@example.com')
 user.update(email_verified: true)
+puts "Email verified for #{user.email}"
 ```
 
 ---
 
 ## Troubleshooting
 
-### Admin User Not Created
-
-**Check environment variables:**
-```bash
-grep LOOMIO_ADMIN .env
-```
-
-Should show:
-```
-LOOMIO_ADMIN_EMAIL=admin@example.com
-LOOMIO_ADMIN_PASSWORD=...
-LOOMIO_ADMIN_NAME=Admin User
-```
-
-**Run creation manually:**
-```bash
-make auto-create-admin
-```
-
-**Check logs:**
-```bash
-make logs-app | grep -i admin
-```
-
 ### "User already exists" Error
 
-This is normal if you run the command multiple times. The user won't be created again.
+This is normal if you run `make create-admin` with an email that's already registered.
 
-**Check if user exists:**
-```bash
-make list-users
-```
+**Verify if user exists and is admin:**
 
-**Verify they're admin:**
 ```bash
 make rails-console
 ```
 
 ```ruby
-User.find_by(email: 'admin@example.com').is_admin?
-# Should return: true
+user = User.find_by(email: 'admin@example.com')
+if user
+  puts "User exists: #{user.email}"
+  puts "Is admin: #{user.is_admin?}"
+  puts "Email verified: #{user.email_verified?}"
+else
+  puts "User not found"
+end
+```
+
+**To promote existing user to admin:**
+
+```ruby
+user = User.find_by(email: 'admin@example.com')
+user.update(is_admin: true)
+puts "#{user.name} is now an admin"
 ```
 
 ### Password Too Weak
@@ -404,12 +260,17 @@ You can have multiple admin users.
 **Create additional admins:**
 ```bash
 make create-admin
-# Enter different email
+# Enter different email for each admin
 ```
 
-**Or promote existing users:**
+**Or promote existing users via Rails console:**
 ```bash
-make promote-user
+make rails-console
+```
+
+```ruby
+user = User.find_by(email: 'user@example.com')
+user.update(is_admin: true)
 ```
 
 ### Can't Access Rails Console
@@ -429,124 +290,114 @@ make start
 make rails-console
 ```
 
-### Permission Denied Errors
-
-**Check .env permissions:**
-```bash
-ls -la .env
-```
-
-**Fix permissions:**
-```bash
-chmod 600 .env
-```
-
 ---
 
 ## Best Practices
 
-### Production
+### Admin Creation
 
-1. ✅ Use environment variables (Method 1)
-2. ✅ Use strong, unique passwords
-3. ✅ Don't commit credentials to git
-4. ✅ Create multiple admins for redundancy
-5. ✅ Change default password after first login
-6. ✅ Use password manager for credentials
+1. Use `make create-admin` for quick admin user creation
+2. Use strong, unique passwords (20+ characters recommended)
+3. Create multiple admins for redundancy
+4. Document admin credentials securely (password manager recommended)
 
-### Development
+### User Management
 
-1. ✅ Use web signup + promotion (Method 3)
-2. ✅ Test email flow with real SMTP
-3. ✅ Use different credentials than production
-4. ✅ Document admin credentials in team wiki
+1. Use Rails console for advanced operations
+2. Always verify user exists before promoting/demoting
+3. Be careful when deleting users - operation cannot be undone
+4. Keep track of who has admin privileges
 
 ### Security
 
-1. ✅ Store `.env` securely
-2. ✅ Use `chmod 600 .env`
-3. ✅ Rotate passwords every 90 days
-4. ✅ Monitor admin actions in logs
-5. ✅ Use 2FA if available (future feature)
-6. ✅ Limit admin access to trusted users
+1. Use strong passwords (minimum 8 characters, 20+ recommended)
+2. Limit admin access to trusted users only
+3. Monitor admin actions in logs
+4. Regularly audit admin user list
 
 ---
 
 ## Quick Reference
 
-```bash
-# Auto-create from .env
-make auto-create-admin
+### Available Commands
 
+```bash
 # Create admin interactively
 make create-admin
 
-# Promote last signup
-make make-admin
-
-# Promote specific user
-make promote-user
-
-# List all users
-make list-users
-
-# Rails console
+# Access Rails console for user management
 make rails-console
+```
 
-# Check user status
-make list-users | grep admin@example.com
+### Common Rails Console Operations
+
+```ruby
+# List all users
+User.all.each { |u| puts "#{u.email} - #{u.name} #{u.is_admin? ? '[ADMIN]' : ''}" }
+
+# Promote user to admin
+User.find_by(email: 'user@example.com').update(is_admin: true)
+
+# List all admins
+User.where(is_admin: true).pluck(:email, :name)
+
+# Check if user is admin
+User.find_by(email: 'user@example.com').is_admin?
 ```
 
 ---
 
 ## Examples
 
-### Example 1: Automated Production Setup
+### Example 1: Create First Admin
 
 ```bash
-# 1. Configure .env
-cat >> .env <<EOF
-LOOMIO_ADMIN_EMAIL=admin@company.com
-LOOMIO_ADMIN_PASSWORD=$(openssl rand -base64 32)
-LOOMIO_ADMIN_NAME=System Administrator
-EOF
+# Create admin interactively
+make create-admin
 
-# 2. Run setup
-make first-time-setup
-
-# Admin is automatically created!
+# Follow prompts:
+# Email address: admin@example.com
+# Username: Admin User
+# Password: (enter secure password)
+# Confirm password: (re-enter password)
 ```
 
 ### Example 2: Create Multiple Admins
 
 ```bash
-# First admin via .env
-make auto-create-admin
+# Create first admin
+make create-admin
+# Email: admin1@example.com
 
-# Additional admins interactively
+# Create second admin
 make create-admin
 # Email: admin2@example.com
-# ...
 
-make create-admin
-# Email: admin3@example.com
-# ...
-
-# Verify
-make list-users
+# Verify both exist via Rails console
+make rails-console
 ```
 
-### Example 3: Promote Existing User
+```ruby
+User.where(is_admin: true).each do |u|
+  puts "#{u.email} - #{u.name}"
+end
+exit
+```
+
+### Example 3: Promote Existing User to Admin
+
+A user signs up through the web interface at `http://your-server-ip:3000`, then you promote them:
 
 ```bash
-# User signs up via web at http://your-ip:3000
-# Then promote them:
+make rails-console
+```
 
-make promote-user
-# Email: newuser@example.com
-
-# Or by last signup:
-make make-admin
+```ruby
+# Find and promote the user
+user = User.find_by(email: 'newuser@example.com')
+user.update(is_admin: true)
+puts "#{user.name} is now an admin"
+exit
 ```
 
 ---
@@ -555,10 +406,5 @@ make make-admin
 
 - View logs: `make logs-app`
 - Check status: `make status`
-- List users: `make list-users`
 - Rails console: `make rails-console`
 - All commands: `make help`
-
----
-
-**Remember:** Always use strong, unique passwords for admin accounts! 🔐

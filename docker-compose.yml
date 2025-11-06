@@ -63,7 +63,6 @@ services:
       - app-tmp:/loomio/tmp
       - app-logs:/loomio/log
       - ./scripts:/scripts:ro
-      # Custom Devise email templates
     ports:
       - "${LOOMIO_PORT:-3000}:3000"
     networks:
@@ -102,7 +101,6 @@ services:
       - app-import:/import
       - app-tmp:/loomio/tmp
       - app-logs:/loomio/log
-      # Custom Devise email templates
     networks:
       - loomio-network
 

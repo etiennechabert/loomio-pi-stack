@@ -245,7 +245,7 @@ docker compose logs -f backup
 
 ```bash
 # Interactive restore
-./scripts/restore-db.sh
+make restore-backup
 
 # Follow prompts:
 # 1. Select backup file
@@ -315,7 +315,7 @@ docker compose restart app worker
 mv ~/Downloads/loomio_backup_*.sql.enc backups/
 
 # 3. Run restore script
-./scripts/restore-db.sh
+make restore-backup
 ```
 
 ### Verify Restoration
@@ -347,7 +347,7 @@ If your server dies completely:
 sudo apt update && sudo apt upgrade -y
 curl -fsSL https://get.docker.com | sh
 sudo usermod -aG docker $USER
-git clone https://github.com/yourusername/loomio-pi-stack.git
+git clone https://github.com/etiennechabert/loomio-pi-stack.git
 cd loomio-pi-stack
 ```
 
@@ -378,7 +378,7 @@ sleep 30
 #### 5. Restore Database
 
 ```bash
-./scripts/restore-db.sh
+make restore-backup
 # Select your backup file
 ```
 
@@ -564,7 +564,7 @@ gzip backups/*.sql
 docker compose stop app worker channels hocuspocus
 
 # Then retry restore
-./scripts/restore-db.sh
+make restore-backup
 ```
 
 ### Google Drive Upload Fails
