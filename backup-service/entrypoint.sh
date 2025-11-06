@@ -35,7 +35,6 @@ echo "  Environment: ${RAILS_ENV}"
 echo "  Storage: $([ "$IS_RAM_MODE" = "true" ] && echo "RAM (tmpfs)" || echo "Disk (volumes)")"
 echo "  Database: ${DB_USER}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
 echo "  Backup Schedule:"
-echo "    - Minute:  Minutes 1-59 (5min retention) [TESTING]"
 echo "    - Hourly:  Hours 1-23 (48h retention)"
 echo "    - Daily:   Midnight on days 2-31 (30d retention)"
 echo "    - Monthly: Midnight on 1st of month (12mo retention)"
@@ -207,9 +206,6 @@ GDRIVE_TOKEN=${GDRIVE_TOKEN}
 GDRIVE_FOLDER_ID=${GDRIVE_FOLDER_ID}
 RAILS_ENV=${RAILS_ENV}
 
-# TESTING: Minute backups (30min retention) - Minutes 1-59 (skips minute 0)
-1-59 * * * * /app/backup-minute.sh >> /proc/1/fd/1 2>&1
-
 # Hourly backups (48h retention) - Hours 1-23 (skips midnight for daily/monthly)
 0 1-23 * * * /app/backup-hourly.sh >> /proc/1/fd/1 2>&1
 
@@ -224,7 +220,6 @@ EOF
 echo ""
 echo "Backup service started successfully"
 echo "Cron schedules active:"
-echo "  - Minute:  1-59 * * * * (5min retention) [TESTING]"
 echo "  - Hourly:  0 1-23 * * * (hours 1-23)"
 echo "  - Daily:   0 0 2-31 * * (midnight, days 2-31)"
 echo "  - Monthly: 0 0 1 * * (midnight, 1st of month)"
