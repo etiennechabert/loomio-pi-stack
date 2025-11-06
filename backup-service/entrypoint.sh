@@ -194,6 +194,19 @@ crontab - << EOF
 # Loomio Multi-Tier Backup Schedule
 # Logs are redirected to container stdout for visibility
 
+# Set PATH and environment for cron jobs
+PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
+DB_HOST=${DB_HOST}
+DB_PORT=${DB_PORT}
+DB_NAME=${DB_NAME}
+DB_USER=${DB_USER}
+DB_PASSWORD=${DB_PASSWORD}
+BACKUP_ENCRYPTION_KEY=${BACKUP_ENCRYPTION_KEY}
+GDRIVE_ENABLED=${GDRIVE_ENABLED}
+GDRIVE_TOKEN=${GDRIVE_TOKEN}
+GDRIVE_FOLDER_ID=${GDRIVE_FOLDER_ID}
+RAILS_ENV=${RAILS_ENV}
+
 # TESTING: Minute backups (30min retention) - Minutes 1-59 (skips minute 0)
 1-59 * * * * /app/backup-minute.sh >> /proc/1/fd/1 2>&1
 
