@@ -52,7 +52,7 @@ clean: ## Remove all containers, volumes, and data (WARNING: DELETES EVERYTHING)
 	@printf "$(RED)═══════════════════════════════════════════════════$(NC)\n"
 	@printf "$(RED)⚠  WARNING: This will DELETE ALL DATA!$(NC)\n"
 	@printf "$(RED)═══════════════════════════════════════════════════$(NC)\n"
-	@read -p "Type 'DELETE' to confirm: " confirm; 	if [ "$$confirm" = "DELETE" ]; then 		docker compose down -v; 		sudo rm -rf data/* production/backups/*; 		echo "$(GREEN)✓ Cleanup complete$(NC)"; 	else 		echo "Cancelled"; 	fi
+	@read -p "Type 'DELETE' to confirm: " confirm; 	if [ "$$confirm" = "DELETE" ]; then 		docker compose down -v; 		sudo rm -rf data/* data/production/backups/*; 		echo "$(GREEN)✓ Cleanup complete$(NC)"; 	else 		echo "Cancelled"; 	fi
 
 logs: ## Show container logs (usage: make logs [SERVICE=app])
 	@docker compose logs -f $(if $(SERVICE),$(SERVICE),)
@@ -76,7 +76,7 @@ migrate: ## Run database migrations (manual)
 backup: ## Create manual database backup
 	@./scripts/backup-db.sh
 
-restore: ## Restore from production/backups/ (interactive)
+restore: ## Restore from data/production/backups/ (interactive)
 	@./scripts/restore-db-manual.sh
 
 sync-gdrive: ## Upload backups to Google Drive

@@ -5,7 +5,7 @@
 set -e
 
 TEST_NAME="Backup Database"
-BACKUP_DIR="./production/backups"
+BACKUP_DIR="./data/production/backups"
 
 echo "Testing: ${TEST_NAME}"
 

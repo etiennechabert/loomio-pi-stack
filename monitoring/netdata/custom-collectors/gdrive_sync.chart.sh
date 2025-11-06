@@ -7,7 +7,7 @@ UPDATE_EVERY=60  # Update every 60 seconds
 PRIORITY=90001
 
 # Get the status file location
-STATUS_FILE="/host/production/backups/.last_sync_status"
+STATUS_FILE="/host/data/production/backups/.last_sync_status"
 
 # Define the chart
 cat << EOF

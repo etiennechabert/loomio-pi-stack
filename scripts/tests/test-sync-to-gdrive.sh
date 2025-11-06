@@ -5,7 +5,7 @@
 set -e
 
 TEST_NAME="Google Drive Sync"
-STATUS_FILE="./production/backups/.last_sync_status"
+STATUS_FILE="./data/production/backups/.last_sync_status"
 
 echo "Testing: ${TEST_NAME}"
 

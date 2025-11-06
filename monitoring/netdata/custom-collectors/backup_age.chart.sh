@@ -1,13 +1,13 @@
 #!/bin/bash
 # Netdata custom collector for Loomio backup age
-# Reports age of latest backup in production/backups/
+# Reports age of latest backup in data/production/backups/
 
 CHART_NAME="loomio_backup"
 UPDATE_EVERY=60  # Update every 60 seconds
 PRIORITY=90000
 
 # Get the directory where backups are stored
-BACKUP_DIR="/host/production/backups"
+BACKUP_DIR="/host/data/production/backups"
 
 # Define the chart
 cat << EOF

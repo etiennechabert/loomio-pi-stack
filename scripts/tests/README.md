@@ -20,7 +20,7 @@ make test
 ### `test-backup-db.sh`
 - **Tests**: Database backup functionality (`backup-db.sh`)
 - **Verifies**: 
-  - Backup file is created in `production/backups/`
+  - Backup file is created in `data/production/backups/`
   - File is encrypted (not plain SQL)
 - **Side effects**: Creates a new backup file
 - **Runtime**: ~30 seconds

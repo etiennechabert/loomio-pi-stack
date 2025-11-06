@@ -1,12 +1,12 @@
 #!/bin/bash
 # Restore latest backup on boot (automatic)
-# Checks local production/backups/ first, then downloads from Google Drive if needed
+# Checks local data/production/backups/ first, then downloads from Google Drive if needed
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-BACKUP_DIR="$PROJECT_DIR/production/backups"
+BACKUP_DIR="$PROJECT_DIR/data/production/backups"
 
 # Colors
 GREEN='\033[0;32m'

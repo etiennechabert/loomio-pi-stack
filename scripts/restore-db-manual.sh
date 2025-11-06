@@ -1,5 +1,5 @@
 #!/bin/bash
-# Manual database restore from production/backups/
+# Manual database restore from data/production/backups/
 # Usage: ./scripts/restore-db-manual.sh [backup_file]
 
 set -e
@@ -25,7 +25,7 @@ else
     exit 1
 fi
 
-BACKUP_DIR="./production/backups"
+BACKUP_DIR="./data/production/backups"
 
 # Get backup file (from argument or find latest)
 if [ -n "$1" ]; then

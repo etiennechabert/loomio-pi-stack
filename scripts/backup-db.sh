@@ -33,6 +33,6 @@ fi
 
 # List recent backups
 log "${BLUE}Recent backups:${NC}"
-ls -lht production/backups/*.sql.enc 2>/dev/null | head -5 || echo "No backups found"
+ls -lht data/production/backups/*.sql.enc 2>/dev/null | head -5 || echo "No backups found"
 
 log "${GREEN}To sync to Google Drive: make sync-gdrive${NC}"

@@ -171,8 +171,8 @@ services:
       GDRIVE_FOLDER_ID: ${GDRIVE_FOLDER_ID}
       RAILS_ENV: ${RAILS_ENV:-production}
     volumes:
-      # Backups stored on disk (not RAM) at production/backups/
-      - ./production/backups:/backups
+      # Backups stored on disk (not RAM) at data/production/backups/
+      - ./data/production/backups:/backups
       # User uploads for backup
       - ./data/uploads/storage:/loomio/storage:ro
       - ./data/uploads/system:/loomio/public/system:ro
@@ -234,7 +234,7 @@ services:
       # Custom collectors
       - ./monitoring/netdata/custom-collectors:/etc/netdata/custom-collectors:ro
       # Mount backup directory for monitoring
-      - ./production/backups:/host/production/backups:ro
+      - ./data/production/backups:/host/data/production/backups:ro
       # Mount netdata.conf to disable cloud
       - ./monitoring/netdata/netdata.conf:/etc/netdata/netdata.conf:ro
     ports:
