@@ -192,7 +192,7 @@ services:
 
   # Database Administration Interface
   adminer:
-    image: adminer:latest
+    image: adminer:4.8.1
     container_name: loomio-adminer
     restart: unless-stopped
     depends_on:
@@ -207,7 +207,7 @@ services:
 
   # System Monitoring
   netdata:
-    image: netdata/netdata:latest
+    image: netdata/netdata:v2.7.3
     container_name: loomio-netdata
     restart: unless-stopped
     hostname: loomio-monitor
@@ -252,7 +252,7 @@ services:
 
   # Automatic Container Updates
   watchtower:
-    image: containrrr/watchtower:latest
+    image: containrrr/watchtower:1.7.1
     container_name: loomio-watchtower
     restart: unless-stopped
     environment:
@@ -268,7 +268,7 @@ services:
 
   # Cloudflare Tunnel (optional)
   cloudflared:
-    image: cloudflare/cloudflared:latest
+    image: cloudflare/cloudflared:2025.10.1
     container_name: loomio-cloudflared
     restart: unless-stopped
     command: tunnel --no-autoupdate run
