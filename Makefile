@@ -73,16 +73,16 @@ migrate: ## Run database migrations (manual)
 	@printf "$(BLUE)Running migrations...$(NC)\n"
 	docker exec loomio-app bundle exec rake db:migrate
 
-backup: ## Create manual database backup
+create-backup: ## Create database backup locally
 	@./scripts/backup-db.sh
 
-restore-from-gdrive: ## Complete disaster recovery (backup + uploads from GDrive)
+restore-from-gdrive: ## Download backup + uploads from Google Drive
 	@./scripts/restore-from-gdrive.sh
 
-restore: ## Restore from data/production/backups/ (interactive)
+restore-backup: ## Restore database from local backup (interactive)
 	@./scripts/restore-db-manual.sh
 
-sync-gdrive: ## Sync backups AND uploads to Google Drive
+upload-to-gdrive: ## Upload backups AND uploads to Google Drive
 	@./scripts/sync-to-gdrive.sh
 
 ##@ Admin Management

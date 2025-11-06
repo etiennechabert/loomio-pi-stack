@@ -86,14 +86,24 @@ log "${GREEN}✓ Database backup downloaded${NC}"
 log "${BLUE}Downloading user uploads...${NC}"
 log "This may take a while depending on upload size..."
 
-docker exec loomio-backup bash -c "
+# Ensure upload directories exist
+mkdir -p data/uploads/storage data/uploads/system data/uploads/files
+
+# Download using docker run with rclone (temporary container)
+docker run --rm \
+    -v "$(pwd)/data/uploads:/uploads" \
+    -e GDRIVE_TOKEN="${GDRIVE_TOKEN}" \
+    -e GDRIVE_FOLDER_ID="${GDRIVE_FOLDER_ID}" \
+    -e ENV_NAME="${ENV_NAME}" \
+    rclone/rclone:latest \
+    bash -c '
 set -e
 
 # Create rclone config
-RCLONE_CONFIG_DIR=\"/tmp/rclone-config-\$\$\"
-mkdir -p \"\$RCLONE_CONFIG_DIR\"
+RCLONE_CONFIG_DIR="/tmp/rclone-config-$$"
+mkdir -p "$RCLONE_CONFIG_DIR"
 
-cat > \"\$RCLONE_CONFIG_DIR/rclone.conf\" << EOF
+cat > "$RCLONE_CONFIG_DIR/rclone.conf" << EOF
 [gdrive]
 type = drive
 scope = drive
@@ -102,17 +112,19 @@ root_folder_id = ${GDRIVE_FOLDER_ID}
 EOF
 
 # Download uploads
-echo \"Downloading from: ${ENV_NAME}/uploads/\"
+echo "Downloading from: ${ENV_NAME}/uploads/"
 for upload_dir in storage system files; do
-    echo \"  → Downloading \$upload_dir...\"
-    rclone sync \"gdrive:${ENV_NAME}/uploads/\$upload_dir\" \"/loomio/\$upload_dir\"         --config \"\$RCLONE_CONFIG_DIR/rclone.conf\"         --progress
+    echo "  → Downloading $upload_dir..."
+    rclone sync "gdrive:${ENV_NAME}/uploads/$upload_dir" "/uploads/$upload_dir" \
+        --config "$RCLONE_CONFIG_DIR/rclone.conf" \
+        --progress
 done
 
 # Cleanup
-rm -rf \"\$RCLONE_CONFIG_DIR\"
+rm -rf "$RCLONE_CONFIG_DIR"
 
-echo \"✓ Uploads downloaded\"
-"
+echo "✓ Uploads downloaded"
+'
 
 if [ $? -ne 0 ]; then
     log "${YELLOW}⚠ Warning: Failed to download some uploads${NC}"
@@ -125,5 +137,5 @@ log "${GREEN}  Download complete!${NC}"
 log "${GREEN}═══════════════════════════════════════════════════${NC}"
 log ""
 log "${BLUE}Next steps:${NC}"
-log "  1. Run: make restore  (to restore the downloaded backup)"
+log "  1. Run: make restore-backup  (to restore the downloaded backup)"
 log "  2. Check uploads are in: data/uploads/"

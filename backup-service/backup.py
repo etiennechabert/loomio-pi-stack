@@ -222,7 +222,7 @@ def main():
     log("=" * 60)
     log("Backup Process Completed Successfully")
     log(f"Final backup: {final_path.name}")
-    log(f"To upload to Google Drive: make sync-gdrive")
+    log(f"To upload to Google Drive: make upload-to-gdrive")
     log("=" * 60)
 
 
