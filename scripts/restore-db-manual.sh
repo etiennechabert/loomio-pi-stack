@@ -61,7 +61,9 @@ docker compose stop app worker
 
 # Decrypt backup
 log "${BLUE}Decrypting backup...${NC}"
-DECRYPTED_FILE="/tmp/restore_$(date +%s).sql"
+DECRYPTED_FILE_NAME="restore_$(date +%s).sql"
+DECRYPTED_FILE_CONTAINER="/backups/${DECRYPTED_FILE_NAME}"
+DECRYPTED_FILE_HOST="./data/production/backups/${DECRYPTED_FILE_NAME}"
 
 docker exec loomio-backup python3 -c "
 import sys
@@ -82,7 +84,7 @@ with open('/backups/$(basename ${BACKUP_FILE})', 'rb') as f:
 
 decrypted = fernet.decrypt(encrypted)
 
-with open('${DECRYPTED_FILE}', 'wb') as f:
+with open('${DECRYPTED_FILE_CONTAINER}', 'wb') as f:
     f.write(decrypted)
 
 print('Decrypted')
@@ -100,11 +102,11 @@ docker exec loomio-db psql -U "${POSTGRES_USER:-loomio}" -d postgres -c "CREATE 
 
 # Restore database
 log "${BLUE}Restoring database...${NC}"
-docker exec -i loomio-db psql -U "${POSTGRES_USER:-loomio}" -d "${POSTGRES_DB:-loomio_production}" < "${DECRYPTED_FILE}"
+docker exec -i loomio-db psql -U "${POSTGRES_USER:-loomio}" -d "${POSTGRES_DB:-loomio_production}" < "${DECRYPTED_FILE_HOST}"
 
 if [ $? -eq 0 ]; then
     log "${GREEN}✓ Database restored successfully!${NC}"
-    rm -f "${DECRYPTED_FILE}"
+    rm -f "${DECRYPTED_FILE_HOST}"
 
     # Restart app and worker containers
     log "${BLUE}Restarting app and worker containers...${NC}"
@@ -112,7 +114,7 @@ if [ $? -eq 0 ]; then
     log "${GREEN}✓ Restore complete!${NC}"
 else
     log "${RED}✗ Database restore failed!${NC}"
-    rm -f "${DECRYPTED_FILE}"
+    rm -f "${DECRYPTED_FILE_HOST}"
 
     # Restart containers even on failure
     log "${BLUE}Restarting app and worker containers...${NC}"
