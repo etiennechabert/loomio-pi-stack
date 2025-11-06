@@ -54,9 +54,9 @@ services:
       RAILS_ENV: ${RAILS_ENV:-production}
       RACK_ENV: ${RACK_ENV:-production}
     volumes:
-      - ./data/uploads/system:/loomio/public/system
-      - ./data/uploads/storage:/loomio/storage
-      - ./data/uploads/files:/loomio/public/files
+      - ./data/production/uploads/system:/loomio/public/system
+      - ./data/production/uploads/storage:/loomio/storage
+      - ./data/production/uploads/files:/loomio/public/files
       - ./config/locales.yml:/loomio/config/locales.yml:ro
       - app-plugins:/loomio/plugins
       - app-import:/import
@@ -95,9 +95,9 @@ services:
       TASK: worker
     command: bundle exec sidekiq
     volumes:
-      - ./data/uploads/system:/loomio/public/system
-      - ./data/uploads/storage:/loomio/storage
-      - ./data/uploads/files:/loomio/public/files
+      - ./data/production/uploads/system:/loomio/public/system
+      - ./data/production/uploads/storage:/loomio/storage
+      - ./data/production/uploads/files:/loomio/public/files
       - app-plugins:/loomio/plugins
       - app-import:/import
       - app-tmp:/loomio/tmp
@@ -178,11 +178,9 @@ services:
       # Backups stored on disk (not RAM) at data/production/backups/
       - ./data/production/backups:/backups
       # User uploads for backup (rw for auto-restore on boot)
-      - ./data/uploads/storage:/loomio/storage
-      - ./data/uploads/system:/loomio/public/system
-      - ./data/uploads/files:/loomio/public/files
-      # Google Drive credentials
-      - ./data/gdrive:/gdrive
+      - ./data/production/uploads/storage:/loomio/storage
+      - ./data/production/uploads/system:/loomio/public/system
+      - ./data/production/uploads/files:/loomio/public/files
     healthcheck:
       test: ["CMD", "test", "-f", "/tmp/.restore-complete"]
       interval: 5s
