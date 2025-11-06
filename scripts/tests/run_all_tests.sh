@@ -5,7 +5,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
-cd "${PROJECT_DIR}"
+cd "${PROJECT_DIR}" || exit 1
 
 # Colors
 GREEN='\033[0;32m'
@@ -26,8 +26,6 @@ SKIPPED=0
 # Run each test
 for test_script in "${SCRIPT_DIR}"/test-*.sh; do
     if [ -f "${test_script}" ]; then
-        TEST_NAME=$(basename "${test_script}")
-
         bash "${test_script}"
         EXIT_CODE=$?
 

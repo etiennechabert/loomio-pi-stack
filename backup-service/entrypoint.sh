@@ -23,37 +23,48 @@ export BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-30}
 export GDRIVE_ENABLED=${GDRIVE_ENABLED:-false}
 export RAILS_ENV=${RAILS_ENV:-development}
 
-# Auto-adjust backup schedule based on environment
-# Production = RAM mode = hourly backups
+# Set storage mode based on environment
 if [ "$RAILS_ENV" = "production" ]; then
-    export BACKUP_SCHEDULE="0 * * * *"  # Hourly in production/RAM mode
     export IS_RAM_MODE="true"
-    echo "Production Mode (RAM): using HOURLY backups"
 else
-    export BACKUP_SCHEDULE=${BACKUP_SCHEDULE:-"0 */6 * * *"}  # Every 6 hours in dev
     export IS_RAM_MODE="false"
-    echo "Development Mode (Disk): using 6-hourly backups"
 fi
 
 echo "Configuration:"
 echo "  Environment: ${RAILS_ENV}"
 echo "  Storage: $([ "$IS_RAM_MODE" = "true" ] && echo "RAM (tmpfs)" || echo "Disk (volumes)")"
 echo "  Database: ${DB_USER}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
-echo "  Schedule: ${BACKUP_SCHEDULE}"
-echo "  Retention: ${BACKUP_RETENTION_DAYS} days"
+echo "  Backup Schedule:"
+echo "    - Hourly:  Hours 1-23 (48h retention)"
+echo "    - Daily:   Midnight on days 2-31 (30d retention)"
+echo "    - Monthly: Midnight on 1st of month (12mo retention)"
+echo "    - Manual:  On-demand (permanent)"
 echo "  Google Drive: ${GDRIVE_ENABLED}"
 echo ""
 
-# Auto-restore on boot if database is empty
-echo "Checking if database restore is needed..."
+# Auto-restore on boot
+echo "Checking if restore is needed..."
 sleep 5  # Wait for database to be fully ready
 
-# Check if database is empty
-TABLE_COUNT=$(PGPASSWORD=${DB_PASSWORD} psql -h ${DB_HOST} -U ${DB_USER} -d ${DB_NAME} -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' ' || echo "0")
+# In production (RAM mode), ALWAYS restore because tmpfs is wiped on boot
+# In development, only restore if database is empty
+SHOULD_RESTORE=false
 
-if [ "$TABLE_COUNT" -eq "0" ]; then
-    echo "Database is empty - attempting restore..."
+if [ "$RAILS_ENV" = "production" ]; then
+    echo "Production mode (RAM): Always restoring from backup..."
+    SHOULD_RESTORE=true
+else
+    # Development: check if database is empty
+    TABLE_COUNT=$(PGPASSWORD=${DB_PASSWORD} psql -h ${DB_HOST} -U ${DB_USER} -d ${DB_NAME} -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' ' || echo "0")
+    if [ "$TABLE_COUNT" -eq "0" ]; then
+        echo "Database is empty - attempting restore..."
+        SHOULD_RESTORE=true
+    else
+        echo "Database already populated (${TABLE_COUNT} tables) - skipping restore"
+    fi
+fi
 
+if [ "$SHOULD_RESTORE" = "true" ]; then
     # Look for latest backup locally
     LATEST_BACKUP=$(ls -t /backups/*.sql.enc 2>/dev/null | head -1)
 
@@ -109,18 +120,110 @@ with open('${LATEST_BACKUP}', 'rb') as f:
     else
         echo "No backup available - database will remain empty"
     fi
-else
-    echo "Database already populated (${TABLE_COUNT} tables) - skipping restore"
 fi
 
-# Set up cron job for scheduled backups and sync
-echo "${BACKUP_SCHEDULE} /app/backup-and-sync.sh >> /proc/1/fd/1 2>&1" > /etc/cron.d/loomio-backup
-chmod 0644 /etc/cron.d/loomio-backup
-crontab /etc/cron.d/loomio-backup
+# Auto-restore uploads on boot
+echo ""
+echo "Checking if uploads restore is needed..."
+
+# In production (RAM mode), always sync uploads to ensure latest files
+# In development, only sync if directories are empty
+SHOULD_SYNC_UPLOADS=false
+
+if [ "$RAILS_ENV" = "production" ] && [ "${GDRIVE_ENABLED}" = "true" ] && [ -n "${GDRIVE_TOKEN}" ] && [ -n "${GDRIVE_FOLDER_ID}" ]; then
+    echo "Production mode (RAM): Always syncing uploads..."
+    SHOULD_SYNC_UPLOADS=true
+else
+    # Development: check if uploads are empty
+    UPLOAD_COUNT=$(find /loomio/storage /loomio/public/system /loomio/public/files -type f 2>/dev/null | wc -l | tr -d ' ')
+    if [ "$UPLOAD_COUNT" -eq "0" ] && [ "${GDRIVE_ENABLED}" = "true" ] && [ -n "${GDRIVE_TOKEN}" ] && [ -n "${GDRIVE_FOLDER_ID}" ]; then
+        echo "Upload directories are empty - downloading from Google Drive..."
+        SHOULD_SYNC_UPLOADS=true
+    else
+        if [ "$UPLOAD_COUNT" -gt "0" ]; then
+            echo "Uploads already present (${UPLOAD_COUNT} files) - skipping restore"
+        else
+            echo "Google Drive not configured - skipping uploads restore"
+        fi
+    fi
+fi
+
+if [ "$SHOULD_SYNC_UPLOADS" = "true" ]; then
+    # Create rclone config
+    RCLONE_CONFIG_DIR="/tmp/rclone-config-uploads-$$"
+    mkdir -p "$RCLONE_CONFIG_DIR"
+    cat > "$RCLONE_CONFIG_DIR/rclone.conf" << EOF
+[gdrive]
+type = drive
+scope = drive
+token = ${GDRIVE_TOKEN}
+root_folder_id = ${GDRIVE_FOLDER_ID}
+EOF
+
+    # Sync uploads from Google Drive
+    echo "Syncing uploads from Google Drive..."
+    for upload_dir in storage system files; do
+        if [ "$upload_dir" = "storage" ]; then
+            TARGET="/loomio/storage"
+        elif [ "$upload_dir" = "system" ]; then
+            TARGET="/loomio/public/system"
+        else
+            TARGET="/loomio/public/files"
+        fi
+
+        echo "  → Syncing $upload_dir to $TARGET..."
+        rclone sync "gdrive:${RAILS_ENV}/uploads/$upload_dir" "$TARGET" \
+            --config "$RCLONE_CONFIG_DIR/rclone.conf" \
+            --progress 2>&1 | grep -E "(Transferred|Elapsed|Checks)" || true
+    done
+
+    rm -rf "$RCLONE_CONFIG_DIR"
+    echo "✓ Uploads synced from Google Drive"
+fi
+
+# Mark restore as complete (for healthcheck)
+touch /tmp/.restore-complete
+echo "✓ Restore process complete"
+
+# Set up cron jobs for multi-tier backups
+echo "Setting up backup schedules..."
+
+# Create crontab with all backup schedules (using root crontab, not /etc/cron.d)
+crontab - << EOF
+# Loomio Multi-Tier Backup Schedule
+# Logs are redirected to container stdout for visibility
+
+# Set PATH and environment for cron jobs
+PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
+DB_HOST=${DB_HOST}
+DB_PORT=${DB_PORT}
+DB_NAME=${DB_NAME}
+DB_USER=${DB_USER}
+DB_PASSWORD=${DB_PASSWORD}
+BACKUP_ENCRYPTION_KEY=${BACKUP_ENCRYPTION_KEY}
+GDRIVE_ENABLED=${GDRIVE_ENABLED}
+GDRIVE_TOKEN=${GDRIVE_TOKEN}
+GDRIVE_FOLDER_ID=${GDRIVE_FOLDER_ID}
+RAILS_ENV=${RAILS_ENV}
+
+# Hourly backups (48h retention) - Hours 1-23 (skips midnight for daily/monthly)
+0 1-23 * * * /app/backup-hourly.sh >> /proc/1/fd/1 2>&1
+
+# Daily backups at midnight (30d retention) - Days 2-31 (skips 1st for monthly)
+0 0 2-31 * * /app/backup-daily.sh >> /proc/1/fd/1 2>&1
+
+# Monthly backups at midnight on 1st of month (12mo retention)
+0 0 1 * * /app/backup-monthly.sh >> /proc/1/fd/1 2>&1
+
+EOF
 
 echo ""
 echo "Backup service started successfully"
-echo "Cron schedule: ${BACKUP_SCHEDULE}"
+echo "Cron schedules active:"
+echo "  - Hourly:  0 1-23 * * * (hours 1-23)"
+echo "  - Daily:   0 0 2-31 * * (midnight, days 2-31)"
+echo "  - Monthly: 0 0 1 * * (midnight, 1st of month)"
+echo ""
 echo "Logs will appear below:"
 echo "================================="
 

@@ -21,8 +21,14 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy backup scripts and make executable
-COPY backup.py backup-and-sync.sh sync-data.sh entrypoint.sh ./
-RUN chmod +x backup.py backup-and-sync.sh sync-data.sh entrypoint.sh && \
+COPY backup.py cleanup-gdrive.py \
+     backup-and-sync.sh sync-data.sh \
+     backup-hourly.sh backup-daily.sh backup-monthly.sh \
+     entrypoint.sh ./
+RUN chmod +x backup.py cleanup-gdrive.py \
+             backup-and-sync.sh sync-data.sh \
+             backup-hourly.sh backup-daily.sh backup-monthly.sh \
+             entrypoint.sh && \
     mkdir -p /backups
 
 ENTRYPOINT ["/app/entrypoint.sh"]
