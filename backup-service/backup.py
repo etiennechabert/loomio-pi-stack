@@ -26,6 +26,7 @@ BACKUP_RETENTION_DAYS = int(os.getenv('BACKUP_RETENTION_DAYS', '30'))
 GDRIVE_ENABLED = os.getenv('GDRIVE_ENABLED', 'false').lower() == 'true'
 GDRIVE_TOKEN = os.getenv('GDRIVE_TOKEN')
 GDRIVE_FOLDER_ID = os.getenv('GDRIVE_FOLDER_ID')
+RAILS_ENV = os.getenv('RAILS_ENV', 'production')
 
 
 def log(message):
@@ -149,8 +150,8 @@ root_folder_id = {GDRIVE_FOLDER_ID}
 """)
 
         # Upload file using rclone
-        # Destination: gdrive:Backup/db_backup/<filename>
-        dest_path = f"gdrive:Backup/db_backup/{file_path.name}"
+        # Destination: gdrive:{environment}/backups/<filename>
+        dest_path = f"gdrive:{RAILS_ENV}/backups/{file_path.name}"
 
         result = subprocess.run([
             'rclone', 'copyto',
