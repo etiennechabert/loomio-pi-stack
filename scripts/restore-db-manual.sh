@@ -55,6 +55,10 @@ if [ "${CONFIRM}" != "yes" ]; then
     exit 0
 fi
 
+# Stop app and worker containers to release database connections
+log "${BLUE}Stopping app and worker containers...${NC}"
+docker compose stop app worker
+
 # Decrypt backup
 log "${BLUE}Decrypting backup...${NC}"
 DECRYPTED_FILE="/tmp/restore_$(date +%s).sql"
@@ -101,10 +105,17 @@ docker exec -i loomio-db psql -U "${POSTGRES_USER:-loomio}" -d "${POSTGRES_DB:-l
 if [ $? -eq 0 ]; then
     log "${GREEN}✓ Database restored successfully!${NC}"
     rm -f "${DECRYPTED_FILE}"
+
+    # Restart app and worker containers
+    log "${BLUE}Restarting app and worker containers...${NC}"
+    docker compose start app worker
+    log "${GREEN}✓ Restore complete!${NC}"
 else
     log "${RED}✗ Database restore failed!${NC}"
     rm -f "${DECRYPTED_FILE}"
+
+    # Restart containers even on failure
+    log "${BLUE}Restarting app and worker containers...${NC}"
+    docker compose start app worker
     exit 1
 fi
-
-log "${GREEN}Restart containers to apply changes: make restart${NC}"
