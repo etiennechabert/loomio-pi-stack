@@ -52,17 +52,31 @@ token = ${GDRIVE_TOKEN}
 root_folder_id = ${GDRIVE_FOLDER_ID}
 EOF
 
-# Download latest backup from environment-specific folder
-echo \"Downloading from: ${ENV_NAME}/backups/\"
-rclone copy \"gdrive:${ENV_NAME}/backups\" \"/backups\" \
+# Find the latest backup file
+echo \"Finding latest backup from: ${ENV_NAME}/backups/\"
+LATEST_FILE=\\\$(rclone lsf \"gdrive:${ENV_NAME}/backups\" \
     --config \"\$RCLONE_CONFIG_DIR/rclone.conf\" \
-    --max-age 7d \
+    --files-only \
+    --include '*.sql.enc' \
+    | grep -v '.partial' \
+    | sort -r \
+    | head -1)
+
+if [ -z \"\$LATEST_FILE\" ]; then
+    echo \"✗ No backup files found in Google Drive\"
+    rm -rf \"\$RCLONE_CONFIG_DIR\"
+    exit 1
+fi
+
+echo \"Downloading: \$LATEST_FILE\"
+rclone copy \"gdrive:${ENV_NAME}/backups/\$LATEST_FILE\" \"/backups\" \
+    --config \"\$RCLONE_CONFIG_DIR/rclone.conf\" \
     --progress
 
 # Cleanup
 rm -rf \"\$RCLONE_CONFIG_DIR\"
 
-echo \"✓ Download complete\"
+echo \"✓ Download complete: \$LATEST_FILE\"
 "
 
 if [ $? -eq 0 ]; then
