@@ -1,5 +1,6 @@
 #!/bin/bash
-# Sync backups to Google Drive at production/backups/
+# Sync backups AND user uploads to Google Drive
+# Syncs to {environment}/backups/ and {environment}/uploads/
 # Writes status file for monitoring
 
 set -e
@@ -33,40 +34,13 @@ if [ -z "${GDRIVE_TOKEN}" ] || [ -z "${GDRIVE_FOLDER_ID}" ]; then
     exit 1
 fi
 
-log "${BLUE}Syncing backups to Google Drive...${NC}"
+log "${BLUE}Syncing backups and uploads to Google Drive...${NC}"
 
-# Get environment name
-ENV_NAME="${RAILS_ENV:-production}"
-
-# Execute sync inside backup container
-if docker exec loomio-backup bash -c '
-set -e
-
-# Create rclone config
-RCLONE_CONFIG_DIR="/tmp/rclone-config-$$"
-mkdir -p "$RCLONE_CONFIG_DIR"
-
-cat > "$RCLONE_CONFIG_DIR/rclone.conf" << EOF
-[gdrive]
-type = drive
-scope = drive
-token = '""'
-root_folder_id = '""'
-EOF
-
-# Sync backups to {environment}/backups/ in Google Drive
-echo "Uploading to Google Drive: '"${ENV_NAME}"'/backups/"
-rclone sync "/backups" "gdrive:'"${ENV_NAME}"'/backups"     --config "$RCLONE_CONFIG_DIR/rclone.conf"     --transfers 4     --checkers 8     --fast-list     --exclude ".DS_Store"     --exclude "Thumbs.db"     --exclude "*.tmp"     --exclude ".last_sync_status"     --progress
-
-# Write success status with timestamp
-date +%s > /backups/.last_sync_status
-
-# Cleanup
-rm -rf "$RCLONE_CONFIG_DIR"
-
-echo "✓ Sync completed"
-'; then
-    log "${GREEN}✓ Backups synced to Google Drive successfully!${NC}"
+# Execute sync inside backup container (uses sync-data.sh which syncs both backups and uploads)
+if docker exec loomio-backup bash /app/sync-data.sh; then
+    # Write success status with timestamp
+    docker exec loomio-backup bash -c 'date +%s > /backups/.last_sync_status'
+    log "${GREEN}✓ Data synced to Google Drive successfully!${NC}"
     exit 0
 else
     log "${RED}✗ Sync failed!${NC}"

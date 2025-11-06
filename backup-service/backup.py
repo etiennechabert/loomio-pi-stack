@@ -215,9 +215,6 @@ def main():
     # Encrypt backup
     final_path = encrypt_backup(backup_path)
 
-    # Upload to Google Drive
-    upload_to_gdrive(final_path)
-
     # Cleanup old backups
     cleanup_old_backups()
 
@@ -225,6 +222,7 @@ def main():
     log("=" * 60)
     log("Backup Process Completed Successfully")
     log(f"Final backup: {final_path.name}")
+    log(f"To upload to Google Drive: make sync-gdrive")
     log("=" * 60)
 
 
