@@ -166,7 +166,7 @@ root_folder_id = {GDRIVE_FOLDER_ID}
         os.rmdir(config_dir)
 
         if result.returncode == 0:
-            log(f"✓ Uploaded to Google Drive: {file_path.name}")
+            log(f"✓ Uploaded to Google Drive: {RAILS_ENV}/backups/{file_path.name}")
             return True
         else:
             log(f"✗ Google Drive upload failed: {result.stderr}")
