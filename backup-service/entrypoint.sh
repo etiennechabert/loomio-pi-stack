@@ -189,30 +189,24 @@ echo "✓ Restore process complete"
 # Set up cron jobs for multi-tier backups
 echo "Setting up backup schedules..."
 
-# Create crontab with all backup schedules
-cat > /etc/cron.d/loomio-backup << EOF
+# Create crontab with all backup schedules (using root crontab, not /etc/cron.d)
+crontab - << EOF
 # Loomio Multi-Tier Backup Schedule
 # Logs are redirected to container stdout for visibility
 
-# Set PATH for cron jobs
-PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
-
 # TESTING: Minute backups (30min retention) - Minutes 1-59 (skips minute 0)
-1-59 * * * * root /app/backup-minute.sh >> /proc/1/fd/1 2>&1
+1-59 * * * * /app/backup-minute.sh >> /proc/1/fd/1 2>&1
 
 # Hourly backups (48h retention) - Hours 1-23 (skips midnight for daily/monthly)
-0 1-23 * * * root /app/backup-hourly.sh >> /proc/1/fd/1 2>&1
+0 1-23 * * * /app/backup-hourly.sh >> /proc/1/fd/1 2>&1
 
 # Daily backups at midnight (30d retention) - Days 2-31 (skips 1st for monthly)
-0 0 2-31 * * root /app/backup-daily.sh >> /proc/1/fd/1 2>&1
+0 0 2-31 * * /app/backup-daily.sh >> /proc/1/fd/1 2>&1
 
 # Monthly backups at midnight on 1st of month (12mo retention)
-0 0 1 * * root /app/backup-monthly.sh >> /proc/1/fd/1 2>&1
+0 0 1 * * /app/backup-monthly.sh >> /proc/1/fd/1 2>&1
 
 EOF
-
-chmod 0644 /etc/cron.d/loomio-backup
-crontab /etc/cron.d/loomio-backup
 
 echo ""
 echo "Backup service started successfully"
