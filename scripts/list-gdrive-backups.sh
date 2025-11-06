@@ -62,7 +62,7 @@ echo "'"'"'{\047\033[0;34m\047}Google Drive Backups ('"'"'$ENV_NAME'"'"'){\047\0
 echo "'"'"'======================================'"'"'
 echo ""
 
-for TYPE in hourly daily monthly manual; do
+for TYPE in minute hourly daily monthly manual; do
     # Filter backups by type
     COUNT=$(echo "$BACKUPS" | python3 -c "
 import sys, json
@@ -118,7 +118,7 @@ echo "========================================"
 echo ""
 
 # List local backups by type
-for TYPE in hourly daily monthly manual; do
+for TYPE in minute hourly daily monthly manual; do
     COUNT=$(ls -1 data/production/backups/loomio-$TYPE-*.sql.enc 2>/dev/null | wc -l | tr -d ' ')
 
     if [ "$COUNT" -gt 0 ]; then

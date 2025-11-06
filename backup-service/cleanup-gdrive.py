@@ -20,8 +20,9 @@ GDRIVE_TOKEN = os.getenv('GDRIVE_TOKEN')
 GDRIVE_FOLDER_ID = os.getenv('GDRIVE_FOLDER_ID')
 RAILS_ENV = os.getenv('RAILS_ENV', 'production')
 
-# Retention rules (in hours for hourly, days for others)
+# Retention rules (in hours for hourly, minutes for minute, days for others)
 RETENTION_RULES = {
+    'minute': 30,    # 30 minutes (testing only)
     'hourly': 48,    # 48 hours
     'daily': 30,     # 30 days
     'monthly': 365,  # 12 months
@@ -62,7 +63,16 @@ def classify_backup(filename):
         tuple: (backup_type, timestamp) or (None, None) if not recognized
     """
     # Parse backup filename
-    if filename.startswith('loomio-hourly-'):
+    if filename.startswith('loomio-minute-'):
+        # Format: loomio-minute-YYYYMMDD-HHmmss.sql.enc
+        try:
+            date_str = filename.replace('loomio-minute-', '').replace('.sql.enc', '')
+            timestamp = datetime.strptime(date_str, '%Y%m%d-%H%M%S')
+            return ('minute', timestamp)
+        except ValueError:
+            return (None, None)
+
+    elif filename.startswith('loomio-hourly-'):
         # Format: loomio-hourly-YYYYMMDD-HHmmss.sql.enc
         try:
             date_str = filename.replace('loomio-hourly-', '').replace('.sql.enc', '')
@@ -102,7 +112,7 @@ def should_delete_backup(backup_type, backup_time):
     """Check if backup should be deleted based on retention policy
 
     Args:
-        backup_type: One of 'hourly', 'daily', 'monthly', 'manual'
+        backup_type: One of 'minute', 'hourly', 'daily', 'monthly', 'manual'
         backup_time: datetime object of backup creation time
 
     Returns:
@@ -116,7 +126,9 @@ def should_delete_backup(backup_type, backup_time):
 
     # Calculate cutoff time
     now = datetime.now()
-    if backup_type == 'hourly':
+    if backup_type == 'minute':
+        cutoff = now - timedelta(minutes=retention)
+    elif backup_type == 'hourly':
         cutoff = now - timedelta(hours=retention)
     else:
         cutoff = now - timedelta(days=retention)
@@ -155,8 +167,8 @@ root_folder_id = {GDRIVE_FOLDER_ID}
         return
 
     # Process each backup
-    deleted_count = {'hourly': 0, 'daily': 0, 'monthly': 0, 'manual': 0, 'unknown': 0}
-    kept_count = {'hourly': 0, 'daily': 0, 'monthly': 0, 'manual': 0, 'unknown': 0}
+    deleted_count = {'minute': 0, 'hourly': 0, 'daily': 0, 'monthly': 0, 'manual': 0, 'unknown': 0}
+    kept_count = {'minute': 0, 'hourly': 0, 'daily': 0, 'monthly': 0, 'manual': 0, 'unknown': 0}
 
     for backup in backups:
         filename = backup['Name']
@@ -193,7 +205,7 @@ root_folder_id = {GDRIVE_FOLDER_ID}
     # Summary
     log("=" * 60)
     log("Google Drive Cleanup Summary:")
-    for backup_type in ['hourly', 'daily', 'monthly', 'manual']:
+    for backup_type in ['minute', 'hourly', 'daily', 'monthly', 'manual']:
         if deleted_count[backup_type] > 0 or kept_count[backup_type] > 0:
             log(f"  {backup_type.title()}: Deleted {deleted_count[backup_type]}, Kept {kept_count[backup_type]}")
     log("=" * 60)

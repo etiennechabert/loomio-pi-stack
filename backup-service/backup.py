@@ -33,8 +33,9 @@ GDRIVE_TOKEN = os.getenv('GDRIVE_TOKEN')
 GDRIVE_FOLDER_ID = os.getenv('GDRIVE_FOLDER_ID')
 RAILS_ENV = os.getenv('RAILS_ENV', 'production')
 
-# Backup type retention rules (in hours for hourly, days for others)
+# Backup type retention rules (in hours for hourly, minutes for minute, days for others)
 RETENTION_RULES = {
+    'minute': 30,    # 30 minutes (testing only)
     'hourly': 48,    # 48 hours (keep last 48 backups)
     'daily': 30,     # 30 days
     'monthly': 365,  # 12 months (365 days)
@@ -79,7 +80,7 @@ def get_backup_filename(backup_type, reason=None):
     """Generate filename based on backup type
 
     Args:
-        backup_type: One of 'hourly', 'daily', 'monthly', 'manual'
+        backup_type: One of 'minute', 'hourly', 'daily', 'monthly', 'manual'
         reason: Optional reason for manual backups
 
     Returns:
@@ -87,7 +88,10 @@ def get_backup_filename(backup_type, reason=None):
     """
     now = datetime.now()
 
-    if backup_type == 'hourly':
+    if backup_type == 'minute':
+        # Format: loomio-minute-YYYYMMDD-HHmmss
+        return f"loomio-minute-{now.strftime('%Y%m%d-%H%M%S')}"
+    elif backup_type == 'hourly':
         # Format: loomio-hourly-YYYYMMDD-HHmmss
         return f"loomio-hourly-{now.strftime('%Y%m%d-%H%M%S')}"
     elif backup_type == 'daily':
@@ -233,7 +237,7 @@ def cleanup_old_backups(backup_type='hourly'):
     """Remove backups older than retention period based on backup type
 
     Args:
-        backup_type: One of 'hourly', 'daily', 'monthly', 'manual'
+        backup_type: One of 'minute', 'hourly', 'daily', 'monthly', 'manual'
     """
     retention = RETENTION_RULES.get(backup_type)
 
@@ -243,15 +247,20 @@ def cleanup_old_backups(backup_type='hourly'):
         return
 
     # Calculate cutoff based on retention period
-    if backup_type == 'hourly':
+    if backup_type == 'minute':
+        cutoff_date = datetime.now() - timedelta(minutes=retention)
+        unit = 'minutes'
+    elif backup_type == 'hourly':
         cutoff_date = datetime.now() - timedelta(hours=retention)
+        unit = 'hours'
     else:
         cutoff_date = datetime.now() - timedelta(days=retention)
+        unit = 'days'
 
     deleted_count = 0
     pattern = f"loomio-{backup_type}-*.sql*"
 
-    log(f"Cleaning up {backup_type} backups older than {retention} {'hours' if backup_type == 'hourly' else 'days'}...")
+    log(f"Cleaning up {backup_type} backups older than {retention} {unit}...")
 
     for backup_file in BACKUP_DIR.glob(pattern):
         if backup_file.stat().st_mtime < cutoff_date.timestamp():
@@ -271,7 +280,7 @@ def main():
     import argparse
     parser = argparse.ArgumentParser(description='Loomio Database Backup')
     parser.add_argument('--type', '-t', default='hourly',
-                        choices=['hourly', 'daily', 'monthly', 'manual'],
+                        choices=['minute', 'hourly', 'daily', 'monthly', 'manual'],
                         help='Backup type (default: hourly)')
     parser.add_argument('--reason', '-r', default=None,
                         help='Reason for manual backup')
