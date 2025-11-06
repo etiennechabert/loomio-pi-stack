@@ -85,7 +85,7 @@ restore-from-gdrive: ## Download backup + uploads from Google Drive
 restore-backup: ## Restore database from local backup (interactive)
 	@./scripts/restore-db-manual.sh
 
-backup-info: ## Show backup system information
+backup-info: ## Show backup system information and available backups
 	@printf "$(BLUE)Multi-Tier Backup System$(NC)\n"
 	@echo ""
 	@echo "Automatic Backups (scheduled):"
@@ -99,6 +99,10 @@ backup-info: ## Show backup system information
 	@echo "  • Never automatically deleted"
 	@echo ""
 	@echo "All backups sync to Google Drive automatically"
+	@echo ""
+	@echo "=========================================="
+	@echo ""
+	@./scripts/list-gdrive-backups.sh
 
 ##@ Admin Management
 
