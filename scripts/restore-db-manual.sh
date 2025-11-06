@@ -106,7 +106,7 @@ docker exec -i loomio-db psql -U "${POSTGRES_USER:-loomio}" -d "${POSTGRES_DB:-l
 
 if [ $? -eq 0 ]; then
     log "${GREEN}✓ Database restored successfully!${NC}"
-    rm -f "${DECRYPTED_FILE_HOST}"
+    docker exec loomio-backup rm -f "${DECRYPTED_FILE_CONTAINER}"
 
     # Restart app and worker containers
     log "${BLUE}Restarting app and worker containers...${NC}"
@@ -114,7 +114,7 @@ if [ $? -eq 0 ]; then
     log "${GREEN}✓ Restore complete!${NC}"
 else
     log "${RED}✗ Database restore failed!${NC}"
-    rm -f "${DECRYPTED_FILE_HOST}"
+    docker exec loomio-backup rm -f "${DECRYPTED_FILE_CONTAINER}"
 
     # Restart containers even on failure
     log "${BLUE}Restarting app and worker containers...${NC}"
