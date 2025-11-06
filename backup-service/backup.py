@@ -26,6 +26,7 @@ BACKUP_RETENTION_DAYS = int(os.getenv('BACKUP_RETENTION_DAYS', '30'))
 GDRIVE_ENABLED = os.getenv('GDRIVE_ENABLED', 'false').lower() == 'true'
 GDRIVE_TOKEN = os.getenv('GDRIVE_TOKEN')
 GDRIVE_FOLDER_ID = os.getenv('GDRIVE_FOLDER_ID')
+RAILS_ENV = os.getenv('RAILS_ENV', 'production')
 
 
 def log(message):
@@ -149,8 +150,8 @@ root_folder_id = {GDRIVE_FOLDER_ID}
 """)
 
         # Upload file using rclone
-        # Destination: gdrive:Backup/db_backup/<filename>
-        dest_path = f"gdrive:Backup/db_backup/{file_path.name}"
+        # Destination: gdrive:{environment}/backups/<filename>
+        dest_path = f"gdrive:{RAILS_ENV}/backups/{file_path.name}"
 
         result = subprocess.run([
             'rclone', 'copyto',
@@ -165,7 +166,7 @@ root_folder_id = {GDRIVE_FOLDER_ID}
         os.rmdir(config_dir)
 
         if result.returncode == 0:
-            log(f"✓ Uploaded to Google Drive: {file_path.name}")
+            log(f"✓ Uploaded to Google Drive: {RAILS_ENV}/backups/{file_path.name}")
             return True
         else:
             log(f"✗ Google Drive upload failed: {result.stderr}")
@@ -214,9 +215,6 @@ def main():
     # Encrypt backup
     final_path = encrypt_backup(backup_path)
 
-    # Upload to Google Drive
-    upload_to_gdrive(final_path)
-
     # Cleanup old backups
     cleanup_old_backups()
 
@@ -224,6 +222,7 @@ def main():
     log("=" * 60)
     log("Backup Process Completed Successfully")
     log(f"Final backup: {final_path.name}")
+    log(f"To upload to Google Drive: make upload-to-gdrive")
     log("=" * 60)
 
 
