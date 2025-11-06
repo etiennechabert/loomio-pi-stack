@@ -79,10 +79,13 @@ backup: ## Create manual database backup
 download-last-backup: ## Download latest backup from Google Drive
 	@./scripts/download-last-backup.sh
 
+restore-from-gdrive: ## Complete disaster recovery (backup + uploads from GDrive)
+	@./scripts/restore-from-gdrive.sh
+
 restore: ## Restore from data/production/backups/ (interactive)
 	@./scripts/restore-db-manual.sh
 
-sync-gdrive: ## Upload backups to Google Drive
+sync-gdrive: ## Sync backups AND uploads to Google Drive
 	@./scripts/sync-to-gdrive.sh
 
 ##@ Admin Management
