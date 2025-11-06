@@ -44,16 +44,29 @@ echo "  Retention: ${BACKUP_RETENTION_DAYS} days"
 echo "  Google Drive: ${GDRIVE_ENABLED}"
 echo ""
 
-# Auto-restore on boot if database is empty
-echo "Checking if database restore is needed..."
+# Auto-restore on boot
+echo "Checking if restore is needed..."
 sleep 5  # Wait for database to be fully ready
 
-# Check if database is empty
-TABLE_COUNT=$(PGPASSWORD=${DB_PASSWORD} psql -h ${DB_HOST} -U ${DB_USER} -d ${DB_NAME} -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' ' || echo "0")
+# In production (RAM mode), ALWAYS restore because tmpfs is wiped on boot
+# In development, only restore if database is empty
+SHOULD_RESTORE=false
 
-if [ "$TABLE_COUNT" -eq "0" ]; then
-    echo "Database is empty - attempting restore..."
+if [ "$RAILS_ENV" = "production" ]; then
+    echo "Production mode (RAM): Always restoring from backup..."
+    SHOULD_RESTORE=true
+else
+    # Development: check if database is empty
+    TABLE_COUNT=$(PGPASSWORD=${DB_PASSWORD} psql -h ${DB_HOST} -U ${DB_USER} -d ${DB_NAME} -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' ' || echo "0")
+    if [ "$TABLE_COUNT" -eq "0" ]; then
+        echo "Database is empty - attempting restore..."
+        SHOULD_RESTORE=true
+    else
+        echo "Database already populated (${TABLE_COUNT} tables) - skipping restore"
+    fi
+fi
 
+if [ "$SHOULD_RESTORE" = "true" ]; then
     # Look for latest backup locally
     LATEST_BACKUP=$(ls -t /backups/*.sql.enc 2>/dev/null | head -1)
 
@@ -109,9 +122,70 @@ with open('${LATEST_BACKUP}', 'rb') as f:
     else
         echo "No backup available - database will remain empty"
     fi
-else
-    echo "Database already populated (${TABLE_COUNT} tables) - skipping restore"
 fi
+
+# Auto-restore uploads on boot
+echo ""
+echo "Checking if uploads restore is needed..."
+
+# In production (RAM mode), always sync uploads to ensure latest files
+# In development, only sync if directories are empty
+SHOULD_SYNC_UPLOADS=false
+
+if [ "$RAILS_ENV" = "production" ] && [ "${GDRIVE_ENABLED}" = "true" ] && [ -n "${GDRIVE_TOKEN}" ] && [ -n "${GDRIVE_FOLDER_ID}" ]; then
+    echo "Production mode (RAM): Always syncing uploads..."
+    SHOULD_SYNC_UPLOADS=true
+else
+    # Development: check if uploads are empty
+    UPLOAD_COUNT=$(find /loomio/storage /loomio/public/system /loomio/public/files -type f 2>/dev/null | wc -l | tr -d ' ')
+    if [ "$UPLOAD_COUNT" -eq "0" ] && [ "${GDRIVE_ENABLED}" = "true" ] && [ -n "${GDRIVE_TOKEN}" ] && [ -n "${GDRIVE_FOLDER_ID}" ]; then
+        echo "Upload directories are empty - downloading from Google Drive..."
+        SHOULD_SYNC_UPLOADS=true
+    else
+        if [ "$UPLOAD_COUNT" -gt "0" ]; then
+            echo "Uploads already present (${UPLOAD_COUNT} files) - skipping restore"
+        else
+            echo "Google Drive not configured - skipping uploads restore"
+        fi
+    fi
+fi
+
+if [ "$SHOULD_SYNC_UPLOADS" = "true" ]; then
+    # Create rclone config
+    RCLONE_CONFIG_DIR="/tmp/rclone-config-uploads-$$"
+    mkdir -p "$RCLONE_CONFIG_DIR"
+    cat > "$RCLONE_CONFIG_DIR/rclone.conf" << EOF
+[gdrive]
+type = drive
+scope = drive
+token = ${GDRIVE_TOKEN}
+root_folder_id = ${GDRIVE_FOLDER_ID}
+EOF
+
+    # Sync uploads from Google Drive
+    echo "Syncing uploads from Google Drive..."
+    for upload_dir in storage system files; do
+        if [ "$upload_dir" = "storage" ]; then
+            TARGET="/loomio/storage"
+        elif [ "$upload_dir" = "system" ]; then
+            TARGET="/loomio/public/system"
+        else
+            TARGET="/loomio/public/files"
+        fi
+
+        echo "  → Syncing $upload_dir to $TARGET..."
+        rclone sync "gdrive:${RAILS_ENV}/uploads/$upload_dir" "$TARGET" \
+            --config "$RCLONE_CONFIG_DIR/rclone.conf" \
+            --progress 2>&1 | grep -E "(Transferred|Elapsed|Checks)" || true
+    done
+
+    rm -rf "$RCLONE_CONFIG_DIR"
+    echo "✓ Uploads synced from Google Drive"
+fi
+
+# Mark restore as complete (for healthcheck)
+touch /tmp/.restore-complete
+echo "✓ Restore process complete"
 
 # Set up cron job for scheduled backups and sync
 echo "${BACKUP_SCHEDULE} /app/backup-and-sync.sh >> /proc/1/fd/1 2>&1" > /etc/cron.d/loomio-backup

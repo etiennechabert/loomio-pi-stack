@@ -44,6 +44,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      backup:
+        condition: service_healthy
     env_file:
       - .env
     environment:
@@ -157,7 +159,8 @@ services:
     container_name: loomio-backup
     restart: unless-stopped
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     environment:
       DB_HOST: db
       DB_PORT: 5432
@@ -174,12 +177,18 @@ services:
     volumes:
       # Backups stored on disk (not RAM) at data/production/backups/
       - ./data/production/backups:/backups
-      # User uploads for backup
-      - ./data/uploads/storage:/loomio/storage:ro
-      - ./data/uploads/system:/loomio/public/system:ro
-      - ./data/uploads/files:/loomio/public/files:ro
+      # User uploads for backup (rw for auto-restore on boot)
+      - ./data/uploads/storage:/loomio/storage
+      - ./data/uploads/system:/loomio/public/system
+      - ./data/uploads/files:/loomio/public/files
       # Google Drive credentials
       - ./data/gdrive:/gdrive
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/.restore-complete"]
+      interval: 5s
+      timeout: 3s
+      retries: 60
+      start_period: 120s
     networks:
       - loomio-network
 

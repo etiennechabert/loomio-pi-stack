@@ -91,12 +91,13 @@ mkdir -p data/uploads/storage data/uploads/system data/uploads/files
 
 # Download using docker run with rclone (temporary container)
 docker run --rm \
+    --entrypoint sh \
     -v "$(pwd)/data/uploads:/uploads" \
     -e GDRIVE_TOKEN="${GDRIVE_TOKEN}" \
     -e GDRIVE_FOLDER_ID="${GDRIVE_FOLDER_ID}" \
     -e ENV_NAME="${ENV_NAME}" \
     rclone/rclone:latest \
-    bash -c '
+    -c '
 set -e
 
 # Create rclone config

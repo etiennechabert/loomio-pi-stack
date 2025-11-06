@@ -1,7 +1,7 @@
 # Loomio Pi Stack - Production RAM Mode (Raspberry Pi)
 SHELL := /bin/bash
 
-.PHONY: help start stop restart status logs backup restore sync-gdrive update-images migrate create-admin health rails-console db-console init-env init-gdrive clean
+.PHONY: help start stop restart status logs backup restore sync-gdrive update-images migrate-db create-admin health rails-console db-console init-env init-gdrive clean
 
 # Default target
 .DEFAULT_GOAL := help
@@ -66,24 +66,24 @@ update-images: ## Pull latest Docker images (manual)
 	@printf "$(YELLOW)Next steps:$(NC)\n"
 	@echo "  1. make stop"
 	@echo "  2. make start"
-	@echo "  3. make migrate  (if needed)"
-	@echo "  4. make backup"
+	@echo "  3. make migrate-db  (if needed)"
+	@echo "  4. make create-backup"
 
-migrate: ## Run database migrations (manual)
+migrate-db: ## Run database migrations (manual)
 	@printf "$(BLUE)Running migrations...$(NC)\n"
 	docker exec loomio-app bundle exec rake db:migrate
 
 create-backup: ## Create database backup locally
 	@./scripts/backup-db.sh
 
+upload-to-gdrive: ## Upload backups AND uploads to Google Drive
+	@./scripts/sync-to-gdrive.sh
+
 restore-from-gdrive: ## Download backup + uploads from Google Drive
 	@./scripts/restore-from-gdrive.sh
 
 restore-backup: ## Restore database from local backup (interactive)
 	@./scripts/restore-db-manual.sh
-
-upload-to-gdrive: ## Upload backups AND uploads to Google Drive
-	@./scripts/sync-to-gdrive.sh
 
 ##@ Admin Management
 
