@@ -54,7 +54,7 @@ EOF
 
 # Find the latest backup file
 echo \"Finding latest backup from: ${ENV_NAME}/backups/\"
-LATEST_FILE=\\\$(rclone lsf \"gdrive:${ENV_NAME}/backups\" \
+LATEST_FILE=\$(rclone lsf \"gdrive:${ENV_NAME}/backups\" \
     --config \"\$RCLONE_CONFIG_DIR/rclone.conf\" \
     --files-only \
     --include '*.sql.enc' \
