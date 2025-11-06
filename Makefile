@@ -112,6 +112,7 @@ create-admin: ## Create admin user (prints password directly)
 
 ##@ Health & Monitoring
 
+
 health: ## Show container status
 	@docker compose ps
 

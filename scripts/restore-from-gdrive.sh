@@ -87,12 +87,12 @@ log "${BLUE}Downloading user uploads...${NC}"
 log "This may take a while depending on upload size..."
 
 # Ensure upload directories exist
-mkdir -p data/uploads/storage data/uploads/system data/uploads/files
+mkdir -p data/production/uploads/storage data/production/uploads/system data/production/uploads/files
 
 # Download using docker run with rclone (temporary container)
 docker run --rm \
     --entrypoint sh \
-    -v "$(pwd)/data/uploads:/uploads" \
+    -v "$(pwd)/data/production/uploads:/uploads" \
     -e GDRIVE_TOKEN="${GDRIVE_TOKEN}" \
     -e GDRIVE_FOLDER_ID="${GDRIVE_FOLDER_ID}" \
     -e ENV_NAME="${ENV_NAME}" \
@@ -139,4 +139,4 @@ log "${GREEN}══════════════════════�
 log ""
 log "${BLUE}Next steps:${NC}"
 log "  1. Run: make restore-backup  (to restore the downloaded backup)"
-log "  2. Check uploads are in: data/uploads/"
+log "  2. Check uploads are in: data/production/uploads/"
