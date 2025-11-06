@@ -1,7 +1,7 @@
 # Loomio Pi Stack - Production RAM Mode (Raspberry Pi)
 SHELL := /bin/bash
 
-.PHONY: help start stop restart status logs backup restore sync-gdrive update-images migrate-db create-admin health rails-console db-console init-env init-gdrive destroy backup-info sidekiq-status
+.PHONY: help start stop restart status logs backup restore sync-gdrive update-images migrate-db create-admin health rails-console db-console init-env init-gdrive destroy backup-info sidekiq-status sidekiq-retry
 
 # Default target
 .DEFAULT_GOAL := help
@@ -119,6 +119,10 @@ sidekiq-status: ## Show Sidekiq queue status and dead jobs
 	@printf "$(BLUE)Sidekiq Status$(NC)\n"
 	@printf "$(BLUE)═══════════════════════════════════════════════════$(NC)\n"
 	@docker exec loomio-app bundle exec rails runner /scripts/ruby/sidekiq_status.rb
+
+sidekiq-retry: ## Retry all retrying jobs immediately
+	@printf "$(YELLOW)Retrying all failed jobs...$(NC)\n"
+	@docker exec loomio-app bundle exec rails runner "require 'sidekiq/api'; Sidekiq::RetrySet.new.each(&:retry); puts '$(GREEN)✓ All retrying jobs have been retried$(NC)'"
 
 ##@ Console Access
 
