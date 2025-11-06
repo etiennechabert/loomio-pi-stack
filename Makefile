@@ -1,7 +1,7 @@
 # Loomio Pi Stack - Production RAM Mode (Raspberry Pi)
 SHELL := /bin/bash
 
-.PHONY: help start stop restart status logs backup restore sync-gdrive update-images migrate-db create-admin health rails-console db-console init-env init-gdrive clean backup-info
+.PHONY: help start stop restart status logs backup restore sync-gdrive update-images migrate-db create-admin health rails-console db-console init-env init-gdrive destroy backup-info
 
 # Default target
 .DEFAULT_GOAL := help
@@ -48,11 +48,11 @@ rebuild: ## Rebuild and restart containers (use after code changes)
 status: ## Show container status
 	@docker compose ps
 
-clean: ## Remove all containers, volumes, and data (WARNING: DELETES EVERYTHING)
+destroy: ## Remove all containers, volumes, and data (WARNING: DELETES EVERYTHING)
 	@printf "$(RED)═══════════════════════════════════════════════════$(NC)\n"
 	@printf "$(RED)⚠  WARNING: This will DELETE ALL DATA!$(NC)\n"
 	@printf "$(RED)═══════════════════════════════════════════════════$(NC)\n"
-	@read -p "Type 'DELETE' to confirm: " confirm; 	if [ "$$confirm" = "DELETE" ]; then 		docker compose down -v; 		sudo rm -rf data/* data/production/backups/*; 		echo "$(GREEN)✓ Cleanup complete$(NC)"; 	else 		echo "Cancelled"; 	fi
+	@read -p "Type 'DELETE' to confirm: " confirm; 	if [ "$$confirm" = "DELETE" ]; then 		docker compose down -v; 		sudo rm -rf data/* data/production/backups/*; 		echo "$(GREEN)✓ Destroy complete$(NC)"; 	else 		echo "Cancelled"; 	fi
 
 logs: ## Show container logs (usage: make logs [SERVICE=app])
 	@docker compose logs -f $(if $(SERVICE),$(SERVICE),)
