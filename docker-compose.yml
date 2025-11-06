@@ -36,7 +36,7 @@ services:
 
   # Loomio App
   app:
-    image: loomio/loomio:master
+    image: wizmoisa/loomio:master
     container_name: loomio-app
     restart: unless-stopped
     depends_on:
@@ -77,7 +77,7 @@ services:
 
   # Loomio Worker
   worker:
-    image: loomio/loomio:master
+    image: wizmoisa/loomio:master
     container_name: loomio-worker
     restart: unless-stopped
     depends_on:
@@ -108,7 +108,7 @@ services:
 
   # Loomio Channels (realtime notifications)
   channels:
-    image: loomio/loomio_channel_server:master
+    image: wizmoisa/loomio-channel-server:master
     container_name: loomio-channels
     restart: unless-stopped
     depends_on:
@@ -131,7 +131,7 @@ services:
 
   # Hocuspocus (collaborative editing)
   hocuspocus:
-    image: loomio/loomio_channel_server:master
+    image: wizmoisa/loomio-channel-server:master
     container_name: loomio-hocuspocus
     restart: unless-stopped
     depends_on:
