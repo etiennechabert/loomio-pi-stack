@@ -11,13 +11,13 @@ This backup service implements a comprehensive multi-tier backup strategy for Lo
 - **Purpose**: Quick recovery from recent issues
 
 ### 2. Daily Backups
-- **Schedule**: 2 AM on days 2-31 (`0 2 2-31 * *`)
+- **Schedule**: Midnight on days 2-31 (`0 0 2-31 * *`)
 - **Retention**: 30 days
 - **Format**: `loomio-daily-YYYYMMDD.sql.enc`
 - **Purpose**: Medium-term recovery
 
 ### 3. Monthly Backups
-- **Schedule**: 1st of month at 3 AM (`0 3 1 * *`)
+- **Schedule**: Midnight on 1st of month (`0 0 1 * *`)
 - **Retention**: 12 months (365 days)
 - **Format**: `loomio-monthly-YYYYMM.sql.enc`
 - **Purpose**: Long-term archival

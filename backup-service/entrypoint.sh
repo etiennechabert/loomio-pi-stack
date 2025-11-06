@@ -36,8 +36,8 @@ echo "  Storage: $([ "$IS_RAM_MODE" = "true" ] && echo "RAM (tmpfs)" || echo "Di
 echo "  Database: ${DB_USER}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
 echo "  Backup Schedule:"
 echo "    - Hourly:  Hours 1-23 (48h retention)"
-echo "    - Daily:   2 AM on days 2-31 (30d retention)"
-echo "    - Monthly: 3 AM on 1st of month (12mo retention)"
+echo "    - Daily:   Midnight on days 2-31 (30d retention)"
+echo "    - Monthly: Midnight on 1st of month (12mo retention)"
 echo "    - Manual:  On-demand (permanent)"
 echo "  Google Drive: ${GDRIVE_ENABLED}"
 echo ""
@@ -193,14 +193,14 @@ cat > /etc/cron.d/loomio-backup << EOF
 # Loomio Multi-Tier Backup Schedule
 # Logs are redirected to container stdout for visibility
 
-# Hourly backups (48h retention) - Hours 1-23
+# Hourly backups (48h retention) - Hours 1-23 (skips midnight for daily/monthly)
 0 1-23 * * * /app/backup-hourly.sh >> /proc/1/fd/1 2>&1
 
-# Daily backups at 2 AM (30d retention) - Days 2-31
-0 2 2-31 * * /app/backup-daily.sh >> /proc/1/fd/1 2>&1
+# Daily backups at midnight (30d retention) - Days 2-31 (skips 1st for monthly)
+0 0 2-31 * * /app/backup-daily.sh >> /proc/1/fd/1 2>&1
 
-# Monthly backups on 1st of month at 3 AM (12mo retention)
-0 3 1 * * /app/backup-monthly.sh >> /proc/1/fd/1 2>&1
+# Monthly backups at midnight on 1st of month (12mo retention)
+0 0 1 * * /app/backup-monthly.sh >> /proc/1/fd/1 2>&1
 
 EOF
 
@@ -211,8 +211,8 @@ echo ""
 echo "Backup service started successfully"
 echo "Cron schedules active:"
 echo "  - Hourly:  0 1-23 * * * (hours 1-23)"
-echo "  - Daily:   0 2 2-31 * * (2 AM, days 2-31)"
-echo "  - Monthly: 0 3 1 * * (3 AM, 1st of month)"
+echo "  - Daily:   0 0 2-31 * * (midnight, days 2-31)"
+echo "  - Monthly: 0 0 1 * * (midnight, 1st of month)"
 echo ""
 echo "Logs will appear below:"
 echo "================================="
