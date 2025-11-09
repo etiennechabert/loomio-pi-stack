@@ -139,14 +139,14 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-loomio}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-loomio_production}
       LOOMIO_HMAC_KEY: ${LOOMIO_HMAC_KEY}
       APP_URL: http://app:3000
-      PORT: 4000
+      RAILS_ENV: ${RAILS_ENV:-production}
     command: npm run hocuspocus
     ports:
-      - "${HOCUSPOCUS_PORT:-4000}:4000"
+      - "${HOCUSPOCUS_PORT:-4000}:5000"
     networks:
       - loomio-network
     healthcheck:
-      test: ["CMD", "curl", "http://localhost:4000"]
+      test: ["CMD", "curl", "http://localhost:5000"]
       interval: 30s
       timeout: 10s
       retries: 3
