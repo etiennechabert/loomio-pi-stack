@@ -1,7 +1,7 @@
 # Loomio Pi Stack - Production RAM Mode (Raspberry Pi)
 SHELL := /bin/bash
 
-.PHONY: help start stop restart status logs backup restore sync-gdrive update-images migrate-db create-admin health rails-console db-console init-env init-gdrive destroy backup-info sidekiq-status sidekiq-retry
+.PHONY: help start stop restart status logs backup restore sync-gdrive update-images migrate-db create-admin health rails-console db-console init-env init-gdrive destroy backup-info sidekiq-status sidekiq-retry deploy-email-worker
 
 # Default target
 .DEFAULT_GOAL := help
@@ -158,6 +158,11 @@ init-env: ## Setup production environment (.env file)
 
 init-gdrive: ## Setup Google Drive OAuth (one-time)
 	@./scripts/init-gdrive.sh
+
+##@ Email Worker (Incoming Email)
+
+deploy-email-worker: ## Deploy Cloudflare Email Worker for incoming email
+	@./scripts/deploy-email-worker.sh
 
 ##@ Testing
 
