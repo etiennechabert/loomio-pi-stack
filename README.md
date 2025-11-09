@@ -27,9 +27,10 @@ Loomio is an open-source collaborative decision-making platform that helps group
 - **Automated Backups** - Hourly encrypted backups with optional Google Drive sync
 - **System Monitoring** - Netdata for real-time metrics and alerts
 - **Health Checks** - Automatic service monitoring and recovery
-- **Auto-Updates** - Watchtower for container updates
+- **Auto-Healing** - Autoheal automatically restarts unhealthy containers
 - **Secure Access** - Cloudflare Tunnel support (no port forwarding needed)
 - **Database Admin** - Adminer web interface
+- **Optional Auto-Updates** - Watchtower available for automatic container updates (disabled by default)
 
 ### Raspberry Pi Optimized
 - ARM-compatible images
@@ -201,10 +202,11 @@ Web-based database admin at `http://your-server-ip:8081`
 ## Security Features
 
 - ✅ AES-256 encrypted backups
-- ✅ Automatic security updates (Watchtower)
+- ✅ Automatic container health monitoring and restart (Autoheal)
 - ✅ Zero-trust access via Cloudflare Tunnel
 - ✅ Environment-based secrets (never committed)
 - ✅ Health monitoring and alerting
+- ✅ Manual security updates (auto-updates available but disabled by default)
 
 See **[SECURITY.md](SECURITY.md)** for security hardening guidelines.
 

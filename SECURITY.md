@@ -33,7 +33,7 @@ Security best practices for running Loomio in production.
 - [ ] Set up intrusion detection (Fail2ban)
 - [ ] Enable audit logging
 - [ ] Implement least privilege access
-- [ ] Regular security updates (Watchtower)
+- [ ] Regular security updates (manual or optional Watchtower)
 - [ ] Vulnerability scanning
 - [ ] Backup encryption key management
 - [ ] DDoS protection (Cloudflare)
@@ -532,17 +532,31 @@ docker compose exec db psql -U loomio -d loomio_production -c \
 
 ## Security Updates
 
-### Automated Updates
+### Manual Updates (Recommended)
 
-Already enabled via Watchtower:
+For production stability, automatic updates are disabled by default. Update manually when ready:
 
 ```bash
-# Check Watchtower logs
-docker compose logs watchtower
-
-# Manual update
+# Update container images
 docker compose pull
+
+# Restart with new images
 docker compose up -d
+
+# Optional: Enable automatic updates (not recommended for production)
+docker compose --profile watchtower up -d
+```
+
+### Automatic Health Monitoring
+
+Autoheal automatically restarts unhealthy containers:
+
+```bash
+# Check autoheal logs
+docker compose logs autoheal
+
+# Monitor container health
+docker ps --filter health=unhealthy
 ```
 
 ### Security Mailing Lists
@@ -570,7 +584,7 @@ This stack already implements:
 ✅ **Network Isolation** - Dedicated Docker network
 ✅ **Health Checks** - Automatic service monitoring
 ✅ **Encrypted Backups** - AES-256 encryption
-✅ **Auto-updates** - Watchtower for patches
+✅ **Auto-healing** - Autoheal restarts unhealthy containers
 ✅ **Monitoring** - Netdata with alerts
 ✅ **Log Management** - Centralized logging
 ✅ **Least Privilege** - Minimal container permissions

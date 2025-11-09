@@ -244,7 +244,8 @@ services:
     networks:
       - loomio-network
 
-  # Automatic Container Updates
+  # Automatic Container Updates (Disabled by default)
+  # To enable auto-updates, add 'watchtower' profile: docker compose --profile watchtower up -d
   watchtower:
     image: containrrr/watchtower:1.7.1
     container_name: loomio-watchtower
@@ -255,6 +256,24 @@ services:
       WATCHTOWER_SCHEDULE: ${WATCHTOWER_SCHEDULE:-0 15 3 * * *}
       WATCHTOWER_NOTIFICATIONS: ${WATCHTOWER_NOTIFICATIONS:-shoutrrr}
       WATCHTOWER_NOTIFICATION_URL: ${WATCHTOWER_NOTIFICATION_URL}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - loomio-network
+    profiles:
+      - watchtower
+
+  # Automatic Container Health Monitor
+  # Automatically restarts unhealthy containers
+  autoheal:
+    image: willfarrell/autoheal:1.2.0
+    container_name: loomio-autoheal
+    restart: unless-stopped
+    environment:
+      AUTOHEAL_CONTAINER_LABEL: all
+      AUTOHEAL_INTERVAL: 10
+      AUTOHEAL_START_PERIOD: 300
+      AUTOHEAL_DEFAULT_STOP_TIMEOUT: 10
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:

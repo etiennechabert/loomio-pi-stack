@@ -104,7 +104,7 @@ Enhancement suggestions are welcome! Please:
 - [ ] All containers start healthy
 - [ ] Web interface accessible
 - [ ] Email sending works
-- [ ] Auto-updates function (Watchtower)
+- [ ] Auto-healing works (Autoheal restarts unhealthy containers)
 - [ ] Monitoring dashboard loads (Netdata)
 
 ### Test on Multiple Platforms
