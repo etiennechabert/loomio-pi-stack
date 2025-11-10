@@ -10,6 +10,62 @@
  * 3. Configure Email Routing to route emails to this worker
  */
 
+/**
+ * Decode RFC 2047 encoded email headers (e.g., subjects with non-ASCII characters)
+ * Format: =?charset?encoding?encoded-text?=
+ * Examples:
+ *   =?UTF-8?Q?R=C3=A9pondre?= -> Répondre
+ *   =?UTF-8?B?UmVzcG9uZHJl?= -> Respondre
+ */
+function decodeRFC2047(str) {
+  if (!str) return str;
+
+  // Match pattern: =?charset?encoding?encoded-text?=
+  const rfc2047Pattern = /=\?([^?]+)\?([QqBb])\?([^?]*)\?=/g;
+
+  return str.replace(rfc2047Pattern, (match, charset, encoding, encodedText) => {
+    try {
+      let bytes;
+
+      if (encoding.toUpperCase() === 'Q') {
+        // Quoted-printable: decode =XX to bytes, replace _ with space
+        const text = encodedText.replace(/_/g, ' ');
+        const byteArray = [];
+
+        for (let i = 0; i < text.length; i++) {
+          if (text[i] === '=' && i + 2 < text.length) {
+            // Decode =XX to byte
+            const hex = text.substring(i + 1, i + 3);
+            byteArray.push(parseInt(hex, 16));
+            i += 2; // Skip the two hex digits
+          } else {
+            // Regular ASCII character
+            byteArray.push(text.charCodeAt(i));
+          }
+        }
+
+        bytes = new Uint8Array(byteArray);
+      } else if (encoding.toUpperCase() === 'B') {
+        // Base64 decode to byte array
+        const binaryString = atob(encodedText);
+        bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+      } else {
+        return match; // Unknown encoding, return as-is
+      }
+
+      // Decode bytes as UTF-8
+      const decoder = new TextDecoder(charset.toLowerCase());
+      return decoder.decode(bytes);
+    } catch (e) {
+      console.error(`Failed to decode RFC 2047 header: ${match}`, e);
+      return match; // Return original on error
+    }
+  });
+}
+
 export default {
   async email(message, env, ctx) {
     // Use ActionMailbox relay ingress instead of legacy /email_processor
@@ -21,7 +77,9 @@ export default {
       // Rails Mail library will handle all parsing (MIME, attachments, encoding, etc.)
       const rawEmail = await new Response(message.raw).arrayBuffer();
 
-      console.log(`Processing email from ${message.from} to ${message.to}, subject: ${message.headers.get('subject')}`);
+      const rawSubject = message.headers.get('subject');
+      const decodedSubject = decodeRFC2047(rawSubject);
+      console.log(`Processing email from ${message.from} to ${message.to}, subject: ${decodedSubject}`);
 
       // Send raw email to ActionMailbox relay ingress
       // Format: multipart/form-data with 'message' field
