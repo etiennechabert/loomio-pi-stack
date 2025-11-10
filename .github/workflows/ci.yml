@@ -118,7 +118,7 @@ jobs:
           "FEATURES.md"
           "BACKUP_GUIDE.md"
           "SECURITY.md"
-          "RESTORE_ON_BOOT.md"
+          "docs/RESTORE_ON_BOOT.md"
           "CONTRIBUTING.md"
           "LICENSE"
         )

@@ -1,7 +1,7 @@
 # Loomio Pi Stack - Production RAM Mode (Raspberry Pi)
 SHELL := /bin/bash
 
-.PHONY: help start stop restart status logs backup restore sync-gdrive update-images migrate-db create-admin health rails-console db-console init-env init-gdrive destroy backup-info sidekiq-status sidekiq-retry deploy-email-worker
+.PHONY: help start stop restart status logs backup restore sync-gdrive pull-docker-images update-images migrate-db create-admin health rails-console db-console init-env init-gdrive destroy backup-info sidekiq-status sidekiq-retry deploy-email-worker
 
 # Default target
 .DEFAULT_GOAL := help
@@ -58,6 +58,11 @@ logs: ## Show container logs (usage: make logs [SERVICE=app])
 	@docker compose logs -f $(if $(SERVICE),$(SERVICE),)
 
 ##@ Manual Operations
+
+pull-docker-images: ## Pull all Docker images from docker-compose
+	@printf "$(BLUE)Pulling all images from docker-compose...$(NC)\n"
+	docker compose pull
+	@printf "$(GREEN)✓ All images pulled$(NC)\n"
 
 update-images: ## Pull latest Docker images (manual)
 	@printf "$(BLUE)Pulling latest images...$(NC)\n"
