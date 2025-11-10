@@ -5,15 +5,15 @@
  * and forwards them to the Loomio email processor endpoint.
  *
  * Setup:
- * 1. Deploy this worker to Cloudflare
- * 2. Set WEBHOOK_URL environment variable to: https://loomio.lyckbo.de/email_processor/
+ * 1. Deploy this worker to Cloudflare using: make deploy-email-worker
+ * 2. The script automatically configures WEBHOOK_URL and EMAIL_PROCESSOR_TOKEN
  * 3. Configure Email Routing to route emails to this worker
  */
 
 export default {
   async email(message, env, ctx) {
-    // Get webhook URL from environment variable
-    const webhookUrl = env.WEBHOOK_URL || 'https://loomio.lyckbo.de/email_processor/';
+    // Get webhook URL from environment variable (set during deployment)
+    const webhookUrl = env.WEBHOOK_URL;
 
     try {
       // Read the raw email content
@@ -52,11 +52,13 @@ export default {
       } else {
         const errorText = await response.text();
         console.error(`❌ Webhook failed with status ${response.status}: ${errorText}`);
+        // Reject the email if webhook fails
+        await message.setReject(`Failed to process email: webhook returned ${response.status}`);
+        return;
       }
 
-      // Always forward the email even if webhook fails
-      // This ensures users still get email notifications
-      await message.forward(env.FALLBACK_EMAIL || message.to);
+      // Email processed successfully, no need to forward
+      console.log('✅ Email processing complete');
 
     } catch (error) {
       console.error('❌ Error processing email:', error);

@@ -2,7 +2,6 @@
 .env
 .env.local
 .env.*.local
-.env.email-worker
 
 # Backup files - entire directory excluded
 backups/

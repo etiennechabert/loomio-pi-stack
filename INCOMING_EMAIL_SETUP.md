@@ -10,27 +10,18 @@ With this setup:
 - ✅ No additional email server needed
 - ✅ No port 25 exposure
 - ✅ Everything stays within Cloudflare
-- ✅ Two-layer security (obscure URL + token auth)
+- ✅ Secure token-based authentication
 
 ## Security Model
 
-This setup uses **defense in depth** with two security layers:
+This setup uses **token-based authentication**:
 
-### Layer 1: Obscure URL Path
-Instead of `/email_processor/`, use a random 64-character hex path:
-```
-/email_processor/a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6...
-```
-
-### Layer 2: Token Authentication
-The Email Worker sends an `X-Email-Token` header that must match your Loomio configuration.
-
-**Both layers must be correct for emails to be processed.**
+The Email Worker sends an `X-Email-Token` header that must match the `EMAIL_PROCESSOR_TOKEN` in your Loomio configuration.
 
 This prevents:
-- ❌ URL guessing attacks
 - ❌ Unauthorized webhook flooding
 - ❌ Email injection attacks
+- ✅ Only verified Cloudflare Email Worker can send emails to Loomio
 
 ## Architecture
 
@@ -58,27 +49,20 @@ Loomio App (processes email)
 
 ## Setup Steps
 
-### Step 1: Configure Email Worker Secrets
+### Step 1: Add Email Worker Configuration to .env
 
-1. Copy the example configuration:
+1. Generate authentication token:
    ```bash
-   cp .env.email-worker.example .env.email-worker
-   ```
-
-2. Generate secure values:
-   ```bash
-   # Generate obscure path (64 random hex characters)
-   echo "/email_processor/$(openssl rand -hex 32)"
-
-   # Generate authentication token
    openssl rand -hex 32
    ```
 
-3. Edit `.env.email-worker`:
+2. Add to your `.env` file:
    ```bash
-   WEBHOOK_URL=https://loomio.lyckbo.de/email_processor/YOUR_RANDOM_PATH
+   # Incoming Email (Reply-by-Email)
    EMAIL_PROCESSOR_TOKEN=YOUR_RANDOM_TOKEN
    ```
+
+   The webhook URL (`/email_processor`) is automatically constructed from your `CANONICAL_HOST` during deployment.
 
 ### Step 2: Deploy the Email Worker
 
@@ -94,14 +78,9 @@ The script will:
 
 **Save the EMAIL_PROCESSOR_TOKEN shown - you'll need it!**
 
-### Step 3: Add Token to Loomio Configuration
+### Step 3: Restart Loomio
 
-Add to your Loomio `.env` file:
-```bash
-EMAIL_PROCESSOR_TOKEN=YOUR_RANDOM_TOKEN
-```
-
-Then restart:
+Restart Loomio to apply the new configuration:
 ```bash
 make restart
 ```
@@ -112,11 +91,9 @@ make restart
 2. Select your tunnel (`loomio`)
 3. Click **Configure**
 4. Under **Public Hostname**, add a new route:
-   - **Path**: Your secret path (from WEBHOOK_URL)
+   - **Path**: `/email_processor`
    - **Service**: `http://app:3000`
    - Click **Save**
-
-**IMPORTANT**: Use the EXACT path from your WEBHOOK_URL, including the random token!
 
 ### Step 5: Enable Cloudflare Email Routing
 
@@ -148,9 +125,10 @@ make restart
 Ensure your `.env` has:
 
 ```bash
+CANONICAL_HOST=loomio.lyckbo.de
 REPLY_HOSTNAME=loomio.lyckbo.de
 FROM_EMAIL=loomiolyckbo@gmail.com
-EMAIL_PROCESSOR_TOKEN=YOUR_TOKEN  # Added in Step 3
+EMAIL_PROCESSOR_TOKEN=YOUR_TOKEN
 ```
 
 ---
