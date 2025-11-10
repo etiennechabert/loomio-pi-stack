@@ -57,7 +57,7 @@ make create-admin
 
 Access Loomio at `http://your-server-ip:3000`
 
-**📖 For detailed setup instructions, see [QUICKSTART.md](QUICKSTART.md)**
+**📖 For detailed setup instructions, see [QUICKSTART.md](docs/QUICKSTART.md)**
 
 ## Architecture
 
@@ -106,14 +106,14 @@ graph TB
 ## Documentation
 
 ### Setup Guides
-- **[QUICKSTART.md](QUICKSTART.md)** - Complete installation guide (30 minutes)
-- **[SMTP_SETUP.md](SMTP_SETUP.md)** - Email configuration (Gmail, SendGrid, Mailgun, etc.)
-- **[BACKUP_GUIDE.md](BACKUP_GUIDE.md)** - Backup, restore, and Google Drive sync
+- **[QUICKSTART.md](docs/QUICKSTART.md)** - Complete installation guide (30 minutes)
+- **[SMTP_SETUP.md](docs/SMTP_SETUP.md)** - Email configuration (Gmail, SendGrid, Mailgun, etc.)
+- **[BACKUP_GUIDE.md](docs/BACKUP_GUIDE.md)** - Backup, restore, and Google Drive sync
 
 ### Configuration
-- **[FEATURES.md](FEATURES.md)** - Languages, SSO, themes, and feature flags
-- **[SECURITY.md](SECURITY.md)** - Security hardening and best practices
-- **[ADMIN_USERS.md](ADMIN_USERS.md)** - User management and administration
+- **[FEATURES.md](docs/FEATURES.md)** - Languages, SSO, themes, and feature flags
+- **[SECURITY.md](docs/SECURITY.md)** - Security hardening and best practices
+- **[ADMIN_USERS.md](docs/ADMIN_USERS.md)** - User management and administration
 
 ### Advanced
 - **[docs/INVITE_ONLY_SETUP.md](docs/INVITE_ONLY_SETUP.md)** - Private, invite-only configuration
@@ -121,7 +121,7 @@ graph TB
 - **[docs/RESTORE_ON_BOOT.md](docs/RESTORE_ON_BOOT.md)** - Stateless Pi setup
 
 ### Development
-- **[CONTRIBUTING.md](CONTRIBUTING.md)** - How to contribute
+- **[CONTRIBUTING.md](docs/CONTRIBUTING.md)** - How to contribute
 - **[docs/MIGRATION_SAFETY.md](docs/MIGRATION_SAFETY.md)** - Database migration safety
 
 ## Essential Commands
@@ -180,7 +180,7 @@ SMTP_PASSWORD=your-app-password
 
 **💡 You don't need to run your own mail server!** Use external SMTP providers like Gmail, SendGrid, or Mailgun.
 
-See **[.env.example](.env.example)** for all options and **[SMTP_SETUP.md](SMTP_SETUP.md)** for email setup.
+See **[.env.example](.env.example)** for all options and **[SMTP_SETUP.md](docs/SMTP_SETUP.md)** for email setup.
 
 ## Monitoring & Administration
 
@@ -206,7 +206,7 @@ Web-based database admin at `http://your-server-ip:8081`
 - ✅ Environment-based secrets (never committed)
 - ✅ Health monitoring and alerting
 
-See **[SECURITY.md](SECURITY.md)** for security hardening guidelines.
+See **[SECURITY.md](docs/SECURITY.md)** for security hardening guidelines.
 
 ## System Requirements
 
@@ -232,7 +232,7 @@ make health  # Run health checks
 ### Email not sending
 1. Verify SMTP settings in `.env`
 2. Check logs: `make logs | grep -i smtp`
-3. See **[SMTP_SETUP.md](SMTP_SETUP.md)** for provider-specific guides
+3. See **[SMTP_SETUP.md](docs/SMTP_SETUP.md)** for provider-specific guides
 
 ### Database issues
 ```bash
@@ -259,7 +259,7 @@ Contributions welcome! Please:
 4. Run tests: `make test`
 5. Submit a pull request
 
-See **[CONTRIBUTING.md](CONTRIBUTING.md)** for detailed guidelines.
+See **[CONTRIBUTING.md](docs/CONTRIBUTING.md)** for detailed guidelines.
 
 ## License
 
