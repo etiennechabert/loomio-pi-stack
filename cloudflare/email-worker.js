@@ -16,24 +16,23 @@ export default {
     const webhookUrl = env.WEBHOOK_URL;
 
     try {
-      // Read the raw email content
-      const rawEmail = await new Response(message.raw).text();
+      // Convert headers to object for Loomio
+      const headersObj = {};
+      for (const [key, value] of message.headers) {
+        headersObj[key] = value;
+      }
 
-      // Prepare the payload for Loomio
-      // Loomio expects the raw email in multipart/form-data format
+      // Create mailinMsg format that Loomio expects
+      const mailinData = {
+        headers: headersObj,
+        text: await new Response(message.raw).text(), // Use raw email as text for now
+        html: '', // Cloudflare doesn't provide parsed HTML
+        attachments: []
+      };
+
+      // Prepare form data
       const formData = new FormData();
-
-      // Add email metadata
-      formData.append('from', message.from);
-      formData.append('to', message.to);
-      formData.append('subject', message.headers.get('subject') || '');
-
-      // Add raw email as a text field
-      formData.append('email', rawEmail);
-
-      // Get message-id for tracking
-      const messageId = message.headers.get('message-id') || '';
-      formData.append('message-id', messageId);
+      formData.append('mailinMsg', JSON.stringify(mailinData));
 
       console.log(`Processing email from ${message.from} to ${message.to}, subject: ${message.headers.get('subject')}`);
 
