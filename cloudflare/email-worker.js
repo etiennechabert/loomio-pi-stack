@@ -22,11 +22,45 @@ export default {
         headersObj[key] = value;
       }
 
+      // Get raw email and extract text/html parts
+      const rawEmail = await new Response(message.raw).text();
+
+      // Simple MIME parser to extract text and HTML parts
+      let textBody = '';
+      let htmlBody = '';
+
+      // Check if multipart
+      const contentType = message.headers.get('content-type') || '';
+      if (contentType.includes('multipart')) {
+        // Extract boundary
+        const boundaryMatch = contentType.match(/boundary="?([^";\s]+)"?/);
+        if (boundaryMatch) {
+          const boundary = boundaryMatch[1];
+          const parts = rawEmail.split(`--${boundary}`);
+
+          for (const part of parts) {
+            if (part.includes('Content-Type: text/plain')) {
+              // Extract text after headers
+              const textMatch = part.split(/\r?\n\r?\n/).slice(1).join('\n').trim();
+              textBody = textMatch.replace(/--[a-f0-9]+--$/, '').trim();
+            }
+            if (part.includes('Content-Type: text/html')) {
+              // Extract HTML after headers
+              const htmlMatch = part.split(/\r?\n\r?\n/).slice(1).join('\n').trim();
+              htmlBody = htmlMatch.replace(/--[a-f0-9]+--$/, '').trim();
+            }
+          }
+        }
+      } else {
+        // Plain text email
+        textBody = rawEmail.split(/\r?\n\r?\n/).slice(1).join('\n').trim();
+      }
+
       // Create mailinMsg format that Loomio expects
       const mailinData = {
         headers: headersObj,
-        text: await new Response(message.raw).text(), // Use raw email as text for now
-        html: '', // Cloudflare doesn't provide parsed HTML
+        text: textBody || rawEmail, // Fallback to raw if parsing fails
+        html: htmlBody,
         attachments: []
       };
 
