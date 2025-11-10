@@ -32,11 +32,11 @@ Cloudflare Email Routing (MX records)
     ↓
 Cloudflare Email Worker
     ↓
-HTTP POST to https://loomio.lyckbo.de/email_processor/
+HTTP POST to https://loomio.lyckbo.de/rails/action_mailbox/relay/inbound_emails
     ↓
 Cloudflare Tunnel
     ↓
-Loomio App (processes email)
+Loomio App ActionMailbox (Rails Mail library processes email)
 ```
 
 ## Prerequisites
@@ -85,15 +85,17 @@ Restart Loomio to apply the new configuration:
 make restart
 ```
 
-### Step 4: Add Email Processor Route to Cloudflare Tunnel
+### Step 4: Add ActionMailbox Route to Cloudflare Tunnel
 
 1. Go to **Cloudflare Dashboard** → **Zero Trust** → **Networks** → **Tunnels**
 2. Select your tunnel (`loomio`)
 3. Click **Configure**
 4. Under **Public Hostname**, add a new route:
-   - **Path**: `/email_processor`
+   - **Path**: `/rails/action_mailbox/relay/inbound_emails`
    - **Service**: `http://app:3000`
    - Click **Save**
+
+**Note**: This route allows the Cloudflare Email Worker to send raw emails to Loomio's ActionMailbox relay ingress endpoint. Rails Mail library handles all email parsing automatically (MIME, attachments, encoding, etc.).
 
 ### Step 5: Enable Cloudflare Email Routing
 
@@ -179,8 +181,9 @@ wrangler tail loomio-email-worker
 - Check Worker logs for errors
 
 **Issue: 404 error on webhook**
-- Verify `/email_processor/` route exists in Cloudflare Tunnel
+- Verify `/rails/action_mailbox/relay/inbound_emails` route exists in Cloudflare Tunnel
 - Check tunnel is running and healthy
+- Ensure Loomio is using ActionMailbox (should be default in recent versions)
 
 **Issue: Loomio not processing email**
 - Check Loomio app logs: `make logs-app | grep email`
@@ -199,22 +202,29 @@ When someone sends email to `anything@loomio.lyckbo.de`:
 
 ### 2. Worker Processes
 
-The Email Worker (`cloudflare-email-worker.js`):
-- Extracts email metadata (from, to, subject)
-- Reads the raw email content
-- Sends HTTP POST to `https://loomio.lyckbo.de/email_processor/`
+The Email Worker (`cloudflare/email-worker.js`):
+- Receives raw email from Cloudflare Email Routing
+- Sends complete raw email (RFC 822 format) as multipart/form-data
+- Posts to ActionMailbox relay ingress: `https://loomio.lyckbo.de/rails/action_mailbox/relay/inbound_emails`
 
-### 3. Loomio Receives
+### 3. Loomio ActionMailbox Processes
 
 The request goes through:
 - Cloudflare Tunnel
-- Nginx/Proxy (if any)
 - Loomio app container
+- Rails ActionMailbox relay ingress
 
-Loomio processes the email and:
-- Extracts the reply content
-- Identifies the discussion/comment thread
-- Posts the reply to the discussion
+Rails Mail library automatically handles:
+- **MIME parsing** - nested multipart/mixed and multipart/alternative structures
+- **Encoding** - quoted-printable, base64, UTF-8, and other character encodings
+- **Attachments** - extracts and stores file attachments
+- **Inline images** - handles Content-ID (CID) references
+- **Body extraction** - separates text/plain and text/html parts
+
+`ReceivedEmailMailbox` then:
+- Validates the email format
+- Identifies the discussion/comment thread (via reply-to address)
+- Posts the reply content to the correct thread
 
 ---
 

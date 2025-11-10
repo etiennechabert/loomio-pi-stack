@@ -12,37 +12,27 @@
 
 export default {
   async email(message, env, ctx) {
-    // Get webhook URL from environment variable (set during deployment)
-    const webhookUrl = env.WEBHOOK_URL;
+    // Use ActionMailbox relay ingress instead of legacy /email_processor
+    // This endpoint accepts raw email and Rails Mail library handles all parsing
+    const webhookUrl = env.WEBHOOK_URL || 'https://loomio.lyckbo.de/rails/action_mailbox/relay/inbound_emails';
 
     try {
-      // Read the raw email content
-      const rawEmail = await new Response(message.raw).text();
-
-      // Prepare the payload for Loomio
-      // Loomio expects the raw email in multipart/form-data format
-      const formData = new FormData();
-
-      // Add email metadata
-      formData.append('from', message.from);
-      formData.append('to', message.to);
-      formData.append('subject', message.headers.get('subject') || '');
-
-      // Add raw email as a text field
-      formData.append('email', rawEmail);
-
-      // Get message-id for tracking
-      const messageId = message.headers.get('message-id') || '';
-      formData.append('message-id', messageId);
+      // Get raw email - send to ActionMailbox relay ingress
+      // Rails Mail library will handle all parsing (MIME, attachments, encoding, etc.)
+      const rawEmail = await new Response(message.raw).arrayBuffer();
 
       console.log(`Processing email from ${message.from} to ${message.to}, subject: ${message.headers.get('subject')}`);
 
-      // Forward to Loomio's email processor with authentication
+      // Send raw email to ActionMailbox relay ingress
+      // Format: multipart/form-data with 'message' field
+      const formData = new FormData();
+      formData.append('message', new Blob([rawEmail], { type: 'message/rfc822' }), 'email.eml');
+
       const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: {
-          // Add authentication header to verify the request is from our worker
-          'X-Email-Token': env.EMAIL_PROCESSOR_TOKEN || '',
+          // Optional: Add authentication if RAILS_INBOUND_EMAIL_PASSWORD is set
+          // 'Authorization': `Bearer ${env.EMAIL_PROCESSOR_TOKEN || ''}`,
         },
         body: formData,
       });
