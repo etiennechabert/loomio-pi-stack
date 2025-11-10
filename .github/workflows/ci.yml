@@ -112,15 +112,20 @@ jobs:
         echo "Checking documentation..."
         docs=(
           "README.md"
-          "QUICKSTART.md"
-          "SMTP_SETUP.md"
-          "ADMIN_USERS.md"
-          "FEATURES.md"
-          "BACKUP_GUIDE.md"
-          "SECURITY.md"
-          "docs/RESTORE_ON_BOOT.md"
-          "CONTRIBUTING.md"
           "LICENSE"
+          "docs/QUICKSTART.md"
+          "docs/SMTP_SETUP.md"
+          "docs/ADMIN_USERS.md"
+          "docs/FEATURES.md"
+          "docs/BACKUP_GUIDE.md"
+          "docs/SECURITY.md"
+          "docs/RESTORE_ON_BOOT.md"
+          "docs/CONTRIBUTING.md"
+          "docs/INCOMING_EMAIL_SETUP.md"
+          "docs/OAUTH2_SETUP.md"
+          "docs/INVITE_ONLY_SETUP.md"
+          "docs/RAM_MODE.md"
+          "docs/MIGRATION_SAFETY.md"
         )
 
         for doc in "${docs[@]}"; do
