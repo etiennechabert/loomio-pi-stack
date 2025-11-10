@@ -85,8 +85,8 @@ if [ -z "$CANONICAL_HOST" ]; then
     exit 1
 fi
 
-# Construct webhook URL from CANONICAL_HOST
-WEBHOOK_URL="https://${CANONICAL_HOST}/email_processor"
+# Construct webhook URL from CANONICAL_HOST - using ActionMailbox relay ingress
+WEBHOOK_URL="https://${CANONICAL_HOST}/rails/action_mailbox/relay/inbound_emails"
 
 echo ""
 echo "Configuration:"
@@ -137,7 +137,7 @@ echo ""
 echo "Next steps:"
 echo "1. Ensure EMAIL_PROCESSOR_TOKEN is in your Loomio .env file"
 echo "2. Add Cloudflare Tunnel route:"
-echo "   Path: /email_processor"
+echo "   Path: /rails/action_mailbox/relay/inbound_emails"
 echo "   Service: http://app:3000"
 echo "3. Restart Loomio: make restart"
 echo "4. Enable Email Routing in Cloudflare Dashboard"

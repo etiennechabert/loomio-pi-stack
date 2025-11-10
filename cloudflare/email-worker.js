@@ -12,100 +12,27 @@
 
 export default {
   async email(message, env, ctx) {
-    // Get webhook URL from environment variable (set during deployment)
-    const webhookUrl = env.WEBHOOK_URL;
+    // Use ActionMailbox relay ingress instead of legacy /email_processor
+    // This endpoint accepts raw email and Rails Mail library handles all parsing
+    const webhookUrl = env.WEBHOOK_URL || 'https://loomio.lyckbo.de/rails/action_mailbox/relay/inbound_emails';
 
     try {
-      // Convert headers to object for Loomio
-      const headersObj = {};
-      for (const [key, value] of message.headers) {
-        headersObj[key] = value;
-      }
-
-      // Get raw email and extract text/html parts
-      const rawEmail = await new Response(message.raw).text();
-
-      // Simple MIME parser to extract text and HTML parts
-      let textBody = '';
-      let htmlBody = '';
-      const attachments = [];
-
-      // Decode quoted-printable
-      const decodeQuotedPrintable = (str) => {
-        return str
-          .replace(/=\r?\n/g, '') // Remove soft line breaks
-          .replace(/=([0-9A-F]{2})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
-      };
-
-      // Check if multipart
-      const contentType = message.headers.get('content-type') || '';
-      if (contentType.includes('multipart')) {
-        // Extract boundary
-        const boundaryMatch = contentType.match(/boundary="?([^";\s]+)"?/);
-        if (boundaryMatch) {
-          const boundary = boundaryMatch[1];
-          const parts = rawEmail.split(`--${boundary}`);
-
-          for (const part of parts) {
-            if (part.includes('Content-Type: text/plain')) {
-              // Find the double newline that separates headers from body
-              const bodyStart = part.search(/\r?\n\r?\n/);
-              if (bodyStart !== -1) {
-                let body = part.substring(bodyStart + 2).trim();
-                // Remove trailing boundary
-                body = body.replace(/\r?\n?--[^\r\n]*--?\s*$/, '').trim();
-                // Decode if quoted-printable
-                if (part.includes('Content-Transfer-Encoding: quoted-printable')) {
-                  body = decodeQuotedPrintable(body);
-                }
-                textBody = body;
-              }
-            }
-            if (part.includes('Content-Type: text/html')) {
-              // Find the double newline that separates headers from body
-              const bodyStart = part.search(/\r?\n\r?\n/);
-              if (bodyStart !== -1) {
-                let body = part.substring(bodyStart + 2).trim();
-                // Remove trailing boundary
-                body = body.replace(/\r?\n?--[^\r\n]*--?\s*$/, '').trim();
-                // Decode if quoted-printable
-                if (part.includes('Content-Transfer-Encoding: quoted-printable')) {
-                  body = decodeQuotedPrintable(body);
-                }
-                htmlBody = body;
-              }
-            }
-          }
-        }
-      } else {
-        // Plain text email - split at first double newline
-        const parts = rawEmail.split(/\r?\n\r?\n/);
-        textBody = parts.slice(1).join('\n\n').trim();
-        if (contentType.includes('quoted-printable')) {
-          textBody = decodeQuotedPrintable(textBody);
-        }
-      }
-
-      // Create mailinMsg format that Loomio expects
-      const mailinData = {
-        headers: headersObj,
-        text: textBody || rawEmail, // Fallback to raw if parsing fails
-        html: htmlBody,
-        attachments: []
-      };
-
-      // Prepare form data
-      const formData = new FormData();
-      formData.append('mailinMsg', JSON.stringify(mailinData));
+      // Get raw email - send to ActionMailbox relay ingress
+      // Rails Mail library will handle all parsing (MIME, attachments, encoding, etc.)
+      const rawEmail = await new Response(message.raw).arrayBuffer();
 
       console.log(`Processing email from ${message.from} to ${message.to}, subject: ${message.headers.get('subject')}`);
 
-      // Forward to Loomio's email processor with authentication
+      // Send raw email to ActionMailbox relay ingress
+      // Format: multipart/form-data with 'message' field
+      const formData = new FormData();
+      formData.append('message', new Blob([rawEmail], { type: 'message/rfc822' }), 'email.eml');
+
       const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: {
-          // Add authentication header to verify the request is from our worker
-          'X-Email-Token': env.EMAIL_PROCESSOR_TOKEN || '',
+          // Optional: Add authentication if RAILS_INBOUND_EMAIL_PASSWORD is set
+          // 'Authorization': `Bearer ${env.EMAIL_PROCESSOR_TOKEN || ''}`,
         },
         body: formData,
       });
