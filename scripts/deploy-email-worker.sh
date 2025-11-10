@@ -61,6 +61,7 @@ echo -e "${GREEN}✓${NC} Logged in to Cloudflare"
 
 # Load environment variables from .env
 if [ -f "$ENV_FILE" ]; then
+    # shellcheck source=/dev/null
     source "$ENV_FILE"
     echo -e "${GREEN}✓${NC} Loaded configuration from .env"
 else
