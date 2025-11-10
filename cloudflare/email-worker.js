@@ -28,6 +28,14 @@ export default {
       // Simple MIME parser to extract text and HTML parts
       let textBody = '';
       let htmlBody = '';
+      const attachments = [];
+
+      // Decode quoted-printable
+      const decodeQuotedPrintable = (str) => {
+        return str
+          .replace(/=\r?\n/g, '') // Remove soft line breaks
+          .replace(/=([0-9A-F]{2})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+      };
 
       // Check if multipart
       const contentType = message.headers.get('content-type') || '';
@@ -40,20 +48,42 @@ export default {
 
           for (const part of parts) {
             if (part.includes('Content-Type: text/plain')) {
-              // Extract text after headers
-              const textMatch = part.split(/\r?\n\r?\n/).slice(1).join('\n').trim();
-              textBody = textMatch.replace(/--[a-f0-9]+--$/, '').trim();
+              // Find the double newline that separates headers from body
+              const bodyStart = part.search(/\r?\n\r?\n/);
+              if (bodyStart !== -1) {
+                let body = part.substring(bodyStart + 2).trim();
+                // Remove trailing boundary
+                body = body.replace(/\r?\n?--[^\r\n]*--?\s*$/, '').trim();
+                // Decode if quoted-printable
+                if (part.includes('Content-Transfer-Encoding: quoted-printable')) {
+                  body = decodeQuotedPrintable(body);
+                }
+                textBody = body;
+              }
             }
             if (part.includes('Content-Type: text/html')) {
-              // Extract HTML after headers
-              const htmlMatch = part.split(/\r?\n\r?\n/).slice(1).join('\n').trim();
-              htmlBody = htmlMatch.replace(/--[a-f0-9]+--$/, '').trim();
+              // Find the double newline that separates headers from body
+              const bodyStart = part.search(/\r?\n\r?\n/);
+              if (bodyStart !== -1) {
+                let body = part.substring(bodyStart + 2).trim();
+                // Remove trailing boundary
+                body = body.replace(/\r?\n?--[^\r\n]*--?\s*$/, '').trim();
+                // Decode if quoted-printable
+                if (part.includes('Content-Transfer-Encoding: quoted-printable')) {
+                  body = decodeQuotedPrintable(body);
+                }
+                htmlBody = body;
+              }
             }
           }
         }
       } else {
-        // Plain text email
-        textBody = rawEmail.split(/\r?\n\r?\n/).slice(1).join('\n').trim();
+        // Plain text email - split at first double newline
+        const parts = rawEmail.split(/\r?\n\r?\n/);
+        textBody = parts.slice(1).join('\n\n').trim();
+        if (contentType.includes('quoted-printable')) {
+          textBody = decodeQuotedPrintable(textBody);
+        }
       }
 
       // Create mailinMsg format that Loomio expects
