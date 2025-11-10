@@ -292,7 +292,7 @@ puts "Password reset email sent to #{user.email}"
 
 **Required for email-based password resets and invitations!**
 
-See [SMTP_SETUP.md](../SMTP_SETUP.md) for detailed setup instructions.
+See [SMTP_SETUP.md](SMTP_SETUP.md) for detailed setup instructions.
 
 ### Fallback (if SMTP not configured)
 
@@ -500,7 +500,7 @@ puts "✓ Temporary user removed"
 
 **Cause**: SMTP not configured
 
-**Solution**: Configure email settings (see [SMTP_SETUP.md](../SMTP_SETUP.md))
+**Solution**: Configure email settings (see [SMTP_SETUP.md](SMTP_SETUP.md))
 
 **Workaround**: Admin resets password manually via Rails console:
 
@@ -563,7 +563,7 @@ SAML_ALLOWED_DOMAINS=your-company.com
 
 This allows self-registration but only from allowed email domains.
 
-**See**: [OAUTH2_SETUP.md](../OAUTH2_SETUP.md) for SSO configuration.
+**See**: [OAUTH2_SETUP.md](OAUTH2_SETUP.md) for SSO configuration.
 
 ---
 
@@ -582,4 +582,4 @@ This setup is ideal for:
 - Closed user groups
 - Sensitive or confidential discussions
 
-For public or semi-public communities, see [FEATURES.md](../FEATURES.md) for other configuration options.
+For public or semi-public communities, see [FEATURES.md](FEATURES.md) for other configuration options.

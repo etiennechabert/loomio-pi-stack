@@ -381,7 +381,7 @@ sudo dphys-swapfile swapon
 ## Getting Help
 
 - Check logs: `make logs`
-- Review [README.md](README.md) for detailed documentation
+- Review [README.md](../README.md) for detailed documentation
 - Loomio Help: https://help.loomio.com/
 - Open an issue: https://github.com/etiennechabert/loomio-pi-stack/issues
 
@@ -434,4 +434,4 @@ http://YOUR_SERVER_IP:3000
 
 ---
 
-**Need help?** Check the [README.md](README.md) or open an issue on GitHub.
+**Need help?** Check the [README.md](../README.md) or open an issue on GitHub.
