@@ -239,6 +239,8 @@ services:
       - ./monitoring/netdata/custom-collectors:/etc/netdata/custom-collectors:ro
       # Mount backup directory for monitoring
       - ./data/production/backups:/host/data/production/backups:ro
+      # Mount Rails logs for HTTP metrics monitoring
+      - app-logs:/host/app/logs:ro
     ports:
       - "${NETDATA_PORT:-19999}:19999"
     networks:
