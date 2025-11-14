@@ -39,6 +39,11 @@ log "${BLUE}══════════════════════�
 # Get environment name
 ENV_NAME="${RAILS_ENV:-production}"
 
+# Clean local backup directory to avoid restoring bad backups
+log "${BLUE}Cleaning local backup directory...${NC}"
+sudo rm -f ./data/production/backups/*.sql.enc
+log "${GREEN}✓ Local backups cleaned${NC}"
+
 # Download latest database backup
 log "${BLUE}Downloading latest database backup...${NC}"
 docker exec loomio-backup bash -c "
@@ -58,7 +63,7 @@ EOF
 
 # Find and download latest backup
 echo \"Finding latest backup from: ${ENV_NAME}/backups/\"
-LATEST_FILE=\$(rclone lsf \"gdrive:${ENV_NAME}/backups\"     --config \"\$RCLONE_CONFIG_DIR/rclone.conf\"     --files-only     --include '*.sql.enc'     | grep -v '.partial'     | sort -r     | head -1)
+LATEST_FILE=\$(rclone lsf \"gdrive:${ENV_NAME}/backups\"     --config \"\$RCLONE_CONFIG_DIR/rclone.conf\"     --files-only     --format tp     --include '*.sql.enc'     | grep -v '.partial'     | sort -r     | head -1     | cut -d';' -f2)
 
 if [ -z \"\$LATEST_FILE\" ]; then
     echo \"✗ No backup files found in Google Drive\"

@@ -244,14 +244,15 @@ services:
     networks:
       - loomio-network
 
-  # Automatic Container Updates
+  # Automatic Container Updates (DISABLED - use manual update checks instead)
   watchtower:
     image: containrrr/watchtower:1.7.1
     container_name: loomio-watchtower
-    restart: unless-stopped
+    restart: "no"
     environment:
-      WATCHTOWER_CLEANUP: "true"
-      WATCHTOWER_INCLUDE_RESTARTING: "true"
+      WATCHTOWER_MONITOR_ONLY: "true"
+      WATCHTOWER_CLEANUP: "false"
+      WATCHTOWER_INCLUDE_RESTARTING: "false"
       WATCHTOWER_SCHEDULE: ${WATCHTOWER_SCHEDULE:-0 15 3 * * *}
       WATCHTOWER_NOTIFICATIONS: ${WATCHTOWER_NOTIFICATIONS:-shoutrrr}
       WATCHTOWER_NOTIFICATION_URL: ${WATCHTOWER_NOTIFICATION_URL}
@@ -259,6 +260,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - loomio-network
+    profiles:
+      - disabled
 
   # Cloudflare Tunnel (optional)
   cloudflared:

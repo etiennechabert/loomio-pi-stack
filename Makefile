@@ -1,7 +1,7 @@
 # Loomio Pi Stack - Production RAM Mode (Raspberry Pi)
 SHELL := /bin/bash
 
-.PHONY: help start stop restart status logs backup restore sync-gdrive pull-docker-images update-images migrate-db create-admin health rails-console db-console init-env init-gdrive destroy backup-info sidekiq-status sidekiq-retry deploy-email-worker
+.PHONY: help start stop restart status logs backup restore sync-gdrive pull-docker-images update-images migrate-db create-admin health rails-console db-console init-env init-gdrive destroy backup-info sidekiq-status sidekiq-retry deploy-email-worker check-updates setup-update-checker
 
 # Default target
 .DEFAULT_GOAL := help
@@ -168,6 +168,25 @@ init-gdrive: ## Setup Google Drive OAuth (one-time)
 
 deploy-email-worker: ## Deploy Cloudflare Email Worker for incoming email
 	@./scripts/deploy-email-worker.sh
+
+##@ Update Management
+
+check-updates: ## Check for Docker image updates (no auto-install)
+	@printf "$(BLUE)Checking for Docker image updates...$(NC)\n"
+	@chmod +x ./scripts/check-updates.sh
+	@./scripts/check-updates.sh
+
+setup-update-checker: ## Setup daily update checker with email notifications
+	@printf "$(BLUE)Setting up daily update checker...$(NC)\n"
+	@chmod +x ./scripts/check-updates.sh
+	@printf "$(YELLOW)Creating systemd timer for daily checks...$(NC)\n"
+	@echo "Add this to your crontab (run: crontab -e):"
+	@echo ""
+	@echo "# Check for Loomio updates daily at 9am"
+	@echo "0 9 * * * cd $(PWD) && ./scripts/check-updates.sh >> data/production/logs/update-check.log 2>&1"
+	@echo ""
+	@printf "$(GREEN)✓ Update checker configured$(NC)\n"
+	@echo "Email notifications will be sent to: $${ALERT_EMAIL}"
 
 ##@ Testing
 
