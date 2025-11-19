@@ -51,6 +51,9 @@ make init-env
 # Start services
 make start
 
+# Install scheduled tasks (required for poll auto-closing, notifications, etc.)
+make install-hourly-tasks
+
 # Create admin user
 make create-admin
 ```
@@ -148,8 +151,10 @@ make health         # Check service health
 make sidekiq-status # View job queue status
 
 # Maintenance
-make update-images  # Update container images
-make help           # Show all commands
+make update-images         # Update container images
+make install-hourly-tasks  # Install scheduled tasks timer (one-time)
+make hourly-tasks-status   # Check scheduled tasks status
+make help                  # Show all commands
 ```
 
 ## Configuration
@@ -197,6 +202,28 @@ Web-based database admin at `http://your-server-ip:8081`
 - Database: `loomio_production`
 - Username: `loomio`
 - Password: (from `.env`)
+
+### Scheduled Tasks (Hourly Maintenance)
+
+The hourly tasks timer ensures critical Loomio operations run automatically:
+
+- **Auto-close expired polls** - Closes polls when their `closing_at` date passes
+- **Send notifications** - "Closing soon" alerts for polls ending in 24 hours
+- **Task reminders** - Scheduled notifications for assigned tasks
+- **Email routing** - Process incoming emails
+- **Daily cleanup** - Maintenance tasks at midnight (cleanup tokens, demos, etc.)
+
+**Setup:**
+```bash
+make install-hourly-tasks  # One-time installation
+make hourly-tasks-status   # Check timer status
+make run-hourly-tasks      # Manually trigger (testing)
+```
+
+**Troubleshooting:**
+- **Polls not auto-closing?** Check timer status: `sudo systemctl status loomio-hourly.timer`
+- **View logs:** `sudo journalctl -u loomio-hourly.service -f`
+- **Manually close expired poll:** Use Rails console (see troubleshooting docs)
 
 ## Security Features
 
