@@ -14,35 +14,27 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
-# Load environment variables
-if [ -f "$PROJECT_DIR/.env" ]; then
-    set -a
-    # shellcheck source=/dev/null
-    . "$PROJECT_DIR/.env"
-    set +a
-fi
+cd "$PROJECT_DIR"
 
-# Timestamp for logging
-TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
+# Logging
+mkdir -p logs
+LOG_FILE="./logs/loomio-hourly.log"
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
+}
 
-echo "[$TIMESTAMP] Starting Loomio hourly tasks..."
+log "Starting Loomio hourly tasks..."
 
 # Check if worker container is running
-if ! docker compose -f "$PROJECT_DIR/docker-compose.yml" ps worker | grep -q "Up"; then
-    echo "[$TIMESTAMP] ERROR: Worker container is not running!"
+if ! docker compose ps worker | grep -q "Up"; then
+    log "ERROR: Worker container is not running!"
     exit 1
 fi
 
 # Execute the hourly tasks in the worker container
-docker compose -f "$PROJECT_DIR/docker-compose.yml" exec -T worker \
-    bundle exec rake loomio:hourly_tasks
-
-EXIT_CODE=$?
-
-if [ "$EXIT_CODE" -eq 0 ]; then
-    echo "[$TIMESTAMP] Hourly tasks completed successfully"
+if docker compose exec -T worker bundle exec rake loomio:hourly_tasks; then
+    log "Hourly tasks completed successfully"
 else
-    echo "[$TIMESTAMP] ERROR: Hourly tasks failed with exit code $EXIT_CODE"
+    log "ERROR: Hourly tasks failed"
+    exit 1
 fi
-
-exit "$EXIT_CODE"
