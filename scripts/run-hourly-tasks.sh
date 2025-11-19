@@ -17,7 +17,8 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 # Load environment variables
 if [ -f "$PROJECT_DIR/.env" ]; then
     set -a
-    source "$PROJECT_DIR/.env"
+    # shellcheck source=/dev/null
+    . "$PROJECT_DIR/.env"
     set +a
 fi
 
@@ -38,10 +39,10 @@ docker compose -f "$PROJECT_DIR/docker-compose.yml" exec -T worker \
 
 EXIT_CODE=$?
 
-if [ $EXIT_CODE -eq 0 ]; then
+if [ "$EXIT_CODE" -eq 0 ]; then
     echo "[$TIMESTAMP] Hourly tasks completed successfully"
 else
     echo "[$TIMESTAMP] ERROR: Hourly tasks failed with exit code $EXIT_CODE"
 fi
 
-exit $EXIT_CODE
+exit "$EXIT_CODE"
