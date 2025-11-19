@@ -1,0 +1,14 @@
+[Unit]
+Description=Loomio Hourly Tasks
+Requires=loomio.service
+After=loomio.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/pi/loomio-pi-stack
+ExecStart=/home/pi/loomio-pi-stack/scripts/run-hourly-tasks.sh
+StandardOutput=append:/home/pi/loomio-pi-stack/logs/loomio-hourly.log
+StandardError=append:/home/pi/loomio-pi-stack/logs/loomio-hourly.log
+
+[Install]
+WantedBy=multi-user.target

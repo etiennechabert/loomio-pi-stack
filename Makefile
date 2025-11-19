@@ -1,7 +1,7 @@
 # Loomio Pi Stack - Production RAM Mode (Raspberry Pi)
 SHELL := /bin/bash
 
-.PHONY: help start stop restart status logs backup restore sync-gdrive pull-docker-images update-images migrate-db create-admin health rails-console db-console init-env init-gdrive destroy backup-info sidekiq-status sidekiq-retry deploy-email-worker check-updates setup-update-checker
+.PHONY: help start stop restart status logs backup restore sync-gdrive pull-docker-images update-images migrate-db create-admin health rails-console db-console init-env init-gdrive destroy backup-info sidekiq-status sidekiq-retry deploy-email-worker check-updates setup-update-checker install-hourly-tasks hourly-tasks-status run-hourly-tasks
 
 # Default target
 .DEFAULT_GOAL := help
@@ -136,6 +136,37 @@ rails-console: ## Open Rails console
 
 db-console: ## Open PostgreSQL console
 	@docker exec -it loomio-db psql -U $(shell grep POSTGRES_USER .env | cut -d '=' -f2) -d $(shell grep POSTGRES_DB .env | cut -d '=' -f2)
+
+##@ Scheduled Tasks
+
+install-hourly-tasks: ## Install systemd timer for hourly maintenance tasks
+	@printf "$(BLUE)Installing hourly tasks timer...$(NC)\n"
+	@sudo cp loomio-hourly.timer /etc/systemd/system/
+	@sudo cp loomio-hourly.service /etc/systemd/system/
+	@sudo systemctl daemon-reload
+	@sudo systemctl enable loomio-hourly.timer
+	@sudo systemctl start loomio-hourly.timer
+	@printf "$(GREEN)✓ Hourly tasks timer installed and started$(NC)\n"
+	@echo ""
+	@echo "This timer runs maintenance tasks every hour including:"
+	@echo "  • Closing expired polls"
+	@echo "  • Sending 'closing soon' notifications"
+	@echo "  • Task reminders"
+	@echo "  • Email routing"
+
+hourly-tasks-status: ## Show hourly tasks timer status
+	@printf "$(BLUE)Hourly Tasks Timer Status$(NC)\n"
+	@printf "$(BLUE)═══════════════════════════════════════════════════$(NC)\n"
+	@sudo systemctl status loomio-hourly.timer --no-pager
+	@echo ""
+	@printf "$(BLUE)Next scheduled run:$(NC)\n"
+	@sudo systemctl list-timers loomio-hourly.timer --no-pager
+
+run-hourly-tasks: ## Manually trigger hourly tasks (for testing)
+	@printf "$(BLUE)Running hourly tasks manually...$(NC)\n"
+	@sudo systemctl start loomio-hourly.service
+	@printf "$(GREEN)✓ Hourly tasks triggered$(NC)\n"
+	@echo "Check logs with: sudo journalctl -u loomio-hourly.service -f"
 
 ##@ Setup (One-Time)
 

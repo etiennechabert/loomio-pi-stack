@@ -1,0 +1,12 @@
+[Unit]
+Description=Loomio Hourly Tasks Timer
+Requires=loomio.service
+After=loomio.service
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=1h
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target
