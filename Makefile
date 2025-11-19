@@ -142,7 +142,7 @@ db-console: ## Open PostgreSQL console
 install-hourly-tasks: ## Install systemd timer for hourly maintenance tasks
 	@printf "$(BLUE)Installing hourly tasks timer...$(NC)\n"
 	@sudo cp loomio-hourly.timer /etc/systemd/system/
-	@sudo cp loomio-hourly.service /etc/systemd/system/
+	@sed 's|{{PROJECT_DIR}}|$(PWD)|g' loomio-hourly.service | sudo tee /etc/systemd/system/loomio-hourly.service > /dev/null
 	@sudo systemctl daemon-reload
 	@sudo systemctl enable loomio-hourly.timer
 	@sudo systemctl start loomio-hourly.timer
