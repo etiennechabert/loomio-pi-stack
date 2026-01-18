@@ -36,7 +36,7 @@ services:
 
   # Loomio App
   app:
-    image: wizmoisa/loomio:master
+    image: loomio/loomio:master-arm64
     container_name: loomio-app
     restart: unless-stopped
     depends_on:
@@ -76,7 +76,7 @@ services:
 
   # Loomio Worker
   worker:
-    image: wizmoisa/loomio:master
+    image: loomio/loomio:master-arm64
     container_name: loomio-worker
     restart: unless-stopped
     depends_on:
@@ -106,7 +106,7 @@ services:
 
   # Loomio Channels (realtime notifications)
   channels:
-    image: wizmoisa/loomio-channel-server:master
+    image: loomio/loomio_channel_server:master
     container_name: loomio-channels
     restart: unless-stopped
     depends_on:
