@@ -1,0 +1,17 @@
+[Unit]
+Description=Loomio Bootstrap - Install timers on first boot
+After=docker.service
+Requires=docker.service
+Before=loomio.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory={{PROJECT_DIR}}
+ExecStart={{PROJECT_DIR}}/scripts/bootstrap-timers.sh
+User=%u
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
