@@ -1,0 +1,15 @@
+[Unit]
+Description=Loomio Daily Error Report
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory={{PROJECT_DIR}}
+ExecStart=/bin/bash {{PROJECT_DIR}}/scripts/send-error-report.sh
+User=%u
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

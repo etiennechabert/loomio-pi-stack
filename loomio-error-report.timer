@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Error Report for Loomio
+Requires=loomio-error-report.service
+
+[Timer]
+# Run daily at 8:00 AM
+OnCalendar=*-*-* 08:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
