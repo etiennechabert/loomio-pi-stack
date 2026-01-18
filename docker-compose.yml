@@ -129,7 +129,7 @@ services:
 
   # Hocuspocus (collaborative editing)
   hocuspocus:
-    image: wizmoisa/loomio-channel-server:master
+    image: loomio/loomio_channel_server:master
     container_name: loomio-hocuspocus
     restart: unless-stopped
     depends_on:
