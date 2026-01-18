@@ -51,10 +51,10 @@ TOTAL_ERRORS=0
 for container in $CONTAINERS; do
     echo "Checking loomio-$container..." >&2
 
-    # Get logs and filter for errors
+    # Get logs and filter for errors, excluding known noise
     ERROR_LOG=$(docker compose logs --since 24h "$container" 2>/dev/null | \
         grep -iE "(ERROR|FATAL|Exception|Traceback|failed|failure)" | \
-        grep -viE "(check_updates|netdata|watchtower)" || true)
+        grep -viE "(check_updates|netdata|watchtower|fatal: not a git repository)" || true)
 
     if [ -n "$ERROR_LOG" ]; then
         ERROR_COUNT=$(echo "$ERROR_LOG" | wc -l)
