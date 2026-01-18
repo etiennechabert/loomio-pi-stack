@@ -1,7 +1,7 @@
 # Loomio Pi Stack - Production RAM Mode (Raspberry Pi)
 SHELL := /bin/bash
 
-.PHONY: help start stop restart status logs backup restore sync-gdrive pull-docker-images update-images migrate-db create-admin health rails-console db-console init-env init-gdrive destroy backup-info sidekiq-status sidekiq-retry deploy-email-worker check-updates setup-update-checker install-hourly-tasks hourly-tasks-status run-hourly-tasks install-error-report error-report-status send-error-report
+.PHONY: help start stop restart status logs backup restore sync-gdrive pull-docker-images update-images migrate-db create-admin health rails-console db-console init-env init-gdrive destroy backup-info sidekiq-status sidekiq-retry deploy-email-worker check-updates setup-update-checker install-hourly-tasks hourly-tasks-status run-hourly-tasks install-error-report error-report-status send-error-report enable-auto-setup
 
 # Default target
 .DEFAULT_GOAL := help
@@ -139,8 +139,23 @@ db-console: ## Open PostgreSQL console
 
 ##@ Scheduled Tasks
 
+enable-auto-setup: ## Enable automatic timer installation on boot
+	@printf "$(BLUE)Installing bootstrap service...$(NC)\n"
+	@chmod +x scripts/bootstrap-timers.sh
+	@sed 's|{{PROJECT_DIR}}|$(PWD)|g' loomio-bootstrap.service | sudo tee /etc/systemd/system/loomio-bootstrap.service > /dev/null
+	@sudo systemctl daemon-reload
+	@sudo systemctl enable loomio-bootstrap.service
+	@printf "$(GREEN)✓ Bootstrap service installed$(NC)\n"
+	@echo ""
+	@echo "The following timers will be auto-installed on boot if missing:"
+	@echo "  • loomio-hourly.timer (maintenance, poll closing)"
+	@echo "  • loomio-error-report.timer (daily error digest)"
+	@echo ""
+	@echo "Run now: sudo systemctl start loomio-bootstrap.service"
+
 install-hourly-tasks: ## Install systemd timer for hourly maintenance tasks
 	@printf "$(BLUE)Installing hourly tasks timer...$(NC)\n"
+	@chmod +x scripts/run-hourly-tasks.sh
 	@sudo cp loomio-hourly.timer /etc/systemd/system/
 	@sed 's|{{PROJECT_DIR}}|$(PWD)|g' loomio-hourly.service | sudo tee /etc/systemd/system/loomio-hourly.service > /dev/null
 	@sudo systemctl daemon-reload
