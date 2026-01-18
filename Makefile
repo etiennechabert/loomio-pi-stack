@@ -1,7 +1,7 @@
 # Loomio Pi Stack - Production RAM Mode (Raspberry Pi)
 SHELL := /bin/bash
 
-.PHONY: help start stop restart status logs backup restore sync-gdrive pull-docker-images update-images migrate-db create-admin health rails-console db-console init-env init-gdrive destroy backup-info sidekiq-status sidekiq-retry deploy-email-worker check-updates setup-update-checker install-hourly-tasks hourly-tasks-status run-hourly-tasks
+.PHONY: help start stop restart status logs backup restore sync-gdrive pull-docker-images update-images migrate-db create-admin health rails-console db-console init-env init-gdrive destroy backup-info sidekiq-status sidekiq-retry deploy-email-worker check-updates setup-update-checker install-hourly-tasks hourly-tasks-status run-hourly-tasks install-error-report error-report-status send-error-report
 
 # Default target
 .DEFAULT_GOAL := help
@@ -55,7 +55,7 @@ destroy: ## Remove all containers, volumes, and data (WARNING: DELETES EVERYTHIN
 	@read -p "Type 'DELETE' to confirm: " confirm; 	if [ "$$confirm" = "DELETE" ]; then 		docker compose down -v; 		sudo rm -rf data/* data/production/backups/*; 		echo "$(GREEN)✓ Destroy complete$(NC)"; 	else 		echo "Cancelled"; 	fi
 
 logs: ## Show container logs (usage: make logs [SERVICE=app])
-	@docker compose logs -f $(if $(SERVICE),$(SERVICE),)
+	@docker compose logs -f --since 24h $(if $(SERVICE),$(SERVICE),app worker channels hocuspocus backup)
 
 ##@ Manual Operations
 
@@ -167,6 +167,34 @@ run-hourly-tasks: ## Manually trigger hourly tasks (for testing)
 	@sudo systemctl start loomio-hourly.service
 	@printf "$(GREEN)✓ Hourly tasks triggered$(NC)\n"
 	@echo "Check logs with: sudo journalctl -u loomio-hourly.service -f"
+
+install-error-report: ## Install daily error report email
+	@printf "$(BLUE)Installing daily error report...$(NC)\n"
+	@chmod +x scripts/send-error-report.sh
+	@sudo cp loomio-error-report.timer /etc/systemd/system/
+	@sed 's|{{PROJECT_DIR}}|$(PWD)|g' loomio-error-report.service | sudo tee /etc/systemd/system/loomio-error-report.service > /dev/null
+	@sudo systemctl daemon-reload
+	@sudo systemctl enable loomio-error-report.timer
+	@sudo systemctl start loomio-error-report.timer
+	@printf "$(GREEN)✓ Daily error report installed$(NC)\n"
+	@echo ""
+	@echo "Report will be sent daily at 8:00 AM to: $$(grep ALERT_EMAIL .env | cut -d '=' -f2)"
+	@echo "Only errors/exceptions will trigger an email (no email on clean days)"
+	@echo "Check status: make error-report-status"
+	@echo "Send test report: make send-error-report"
+
+error-report-status: ## Show error report timer status
+	@printf "$(BLUE)Error Report Timer Status$(NC)\n"
+	@printf "$(BLUE)═══════════════════════════════════════════════════$(NC)\n"
+	@sudo systemctl status loomio-error-report.timer --no-pager
+	@echo ""
+	@printf "$(BLUE)Next scheduled run:$(NC)\n"
+	@sudo systemctl list-timers loomio-error-report.timer --no-pager
+
+send-error-report: ## Manually send error report (for testing)
+	@printf "$(BLUE)Sending error report...$(NC)\n"
+	@./scripts/send-error-report.sh
+	@printf "$(GREEN)✓ Error report sent$(NC)\n"
 
 ##@ Setup (One-Time)
 
