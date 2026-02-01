@@ -231,9 +231,10 @@ init-env: ## Setup production environment (.env file)
 	@echo ""
 	@printf "$(YELLOW)Next steps:$(NC)\n"
 	@echo "  1. Edit .env and configure SMTP settings"
-	@echo "  2. Run: make init-gdrive  (setup Google Drive)"
-	@echo "  3. Run: make start"
-	@echo "  4. Run: make create-admin"
+	@echo "  2. Run: make enable-auto-setup  (auto-install timers on boot)"
+	@echo "  3. Run: make init-gdrive  (setup Google Drive - optional)"
+	@echo "  4. Run: make start"
+	@echo "  5. Run: make create-admin"
 
 init-gdrive: ## Setup Google Drive OAuth (one-time)
 	@./scripts/init-gdrive.sh
