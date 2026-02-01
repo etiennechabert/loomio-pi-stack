@@ -123,6 +123,9 @@ graph TB
 - **[docs/RAM_MODE.md](docs/RAM_MODE.md)** - RAM-only operation details
 - **[docs/RESTORE_ON_BOOT.md](docs/RESTORE_ON_BOOT.md)** - Stateless Pi setup
 
+### Testing & Staging
+- **[docs/STAGING_SETUP.md](docs/STAGING_SETUP.md)** - Staging environment for testing updates/migrations
+
 ### Development
 - **[CONTRIBUTING.md](docs/CONTRIBUTING.md)** - How to contribute
 - **[docs/MIGRATION_SAFETY.md](docs/MIGRATION_SAFETY.md)** - Database migration safety
@@ -155,6 +158,11 @@ make update-images         # Update container images
 make install-hourly-tasks  # Install scheduled tasks timer (one-time)
 make hourly-tasks-status   # Check scheduled tasks status
 make help                  # Show all commands
+
+# Environment Management
+cp .env.staging.example .env    # Use staging environment
+cp .env.production.example .env # Use production environment
+nano .env                        # Edit secrets
 ```
 
 ## Configuration

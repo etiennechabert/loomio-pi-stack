@@ -22,13 +22,7 @@ export DB_USER=${DB_USER:-loomio}
 export BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-30}
 export GDRIVE_ENABLED=${GDRIVE_ENABLED:-false}
 export RAILS_ENV=${RAILS_ENV:-development}
-
-# Set storage mode based on environment
-if [ "$RAILS_ENV" = "production" ]; then
-    export IS_RAM_MODE="true"
-else
-    export IS_RAM_MODE="false"
-fi
+export IS_RAM_MODE=${IS_RAM_MODE:-false}
 
 echo "Configuration:"
 echo "  Environment: ${RAILS_ENV}"
@@ -46,12 +40,12 @@ echo ""
 echo "Checking if restore is needed..."
 sleep 5  # Wait for database to be fully ready
 
-# In production (RAM mode), ALWAYS restore because tmpfs is wiped on boot
-# In development, only restore if database is empty
+# In RAM mode, ALWAYS restore because tmpfs is wiped on boot
+# In disk mode, only restore if database is empty
 SHOULD_RESTORE=false
 
-if [ "$RAILS_ENV" = "production" ]; then
-    echo "Production mode (RAM): Always restoring from backup..."
+if [ "$IS_RAM_MODE" = "true" ]; then
+    echo "${RAILS_ENV} mode (RAM): Always restoring from backup..."
     SHOULD_RESTORE=true
 else
     # Development: check if database is empty
@@ -126,12 +120,12 @@ fi
 echo ""
 echo "Checking if uploads restore is needed..."
 
-# In production (RAM mode), always sync uploads to ensure latest files
-# In development, only sync if directories are empty
+# In RAM mode, always sync uploads to ensure latest files
+# In disk mode, only sync if directories are empty
 SHOULD_SYNC_UPLOADS=false
 
-if [ "$RAILS_ENV" = "production" ] && [ "${GDRIVE_ENABLED}" = "true" ] && [ -n "${GDRIVE_TOKEN}" ] && [ -n "${GDRIVE_FOLDER_ID}" ]; then
-    echo "Production mode (RAM): Always syncing uploads..."
+if [ "$IS_RAM_MODE" = "true" ] && [ "${GDRIVE_ENABLED}" = "true" ] && [ -n "${GDRIVE_TOKEN}" ] && [ -n "${GDRIVE_FOLDER_ID}" ]; then
+    echo "${RAILS_ENV} mode (RAM): Always syncing uploads..."
     SHOULD_SYNC_UPLOADS=true
 else
     # Development: check if uploads are empty
