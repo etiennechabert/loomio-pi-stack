@@ -33,7 +33,8 @@ check_image_updates() {
     local container_name=$2
 
     # Get current image digest
-    local current_digest=$(docker inspect "$container_name" 2>/dev/null | jq -r '.[0].Image' || echo "")
+    local current_digest
+    current_digest=$(docker inspect "$container_name" 2>/dev/null | jq -r '.[0].Image' || echo "")
     if [ -z "$current_digest" ]; then
         return 1
     fi
@@ -42,7 +43,8 @@ check_image_updates() {
     docker pull "$image" >/dev/null 2>&1 || return 1
 
     # Get latest image digest
-    local latest_digest=$(docker inspect "$image" 2>/dev/null | jq -r '.[0].Id' || echo "")
+    local latest_digest
+    latest_digest=$(docker inspect "$image" 2>/dev/null | jq -r '.[0].Id' || echo "")
 
     # Compare
     if [ "$current_digest" != "$latest_digest" ] && [ -n "$latest_digest" ]; then
@@ -79,7 +81,6 @@ for service in "${SERVICES[@]}"; do
     echo "Checking $full_image ($container_name)..."
 
     if check_image_updates "$full_image" "$container_name"; then
-        current_version=$(get_version_info "$full_image")
         UPDATES_AVAILABLE+=("$container_name: $full_image (new version available)")
         echo "  ✓ Update available for $container_name"
     else
