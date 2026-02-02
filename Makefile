@@ -258,6 +258,25 @@ install: ## Install Docker and dependencies (Raspberry Pi)
 	@sudo apt install -y git openssl make rclone
 	@printf "$(GREEN)✓ Installation complete!$(NC)\n"
 
+install-systemd: ## Install systemd service for auto-start on boot
+	@printf "$(BLUE)Installing Loomio systemd service...$(NC)\n"
+	@sudo cp loomio.service /etc/systemd/system/
+	@sed 's|/home/pi/loomio-pi-stack|$(PWD)|g' loomio.service | sudo tee /etc/systemd/system/loomio.service > /dev/null
+	@sudo cp loomio-watchdog.service loomio-watchdog.timer /etc/systemd/system/
+	@sed 's|/home/pi/loomio-pi-stack|$(PWD)|g' loomio-watchdog.service | sudo tee /etc/systemd/system/loomio-watchdog.service > /dev/null
+	@sudo systemctl daemon-reload
+	@sudo systemctl enable loomio.service
+	@sudo systemctl enable loomio-watchdog.timer
+	@sudo systemctl start loomio-watchdog.timer
+	@printf "$(GREEN)✓ Systemd service installed and enabled$(NC)\n"
+	@echo ""
+	@echo "Loomio will now start automatically on boot"
+	@echo "Services installed:"
+	@echo "  • loomio.service - Main application (starts Docker Compose)"
+	@echo "  • loomio-watchdog.timer - Health monitoring (every 5 minutes)"
+	@echo ""
+	@echo "Verify status: sudo systemctl status loomio.service"
+
 init-env: ## Setup production environment (.env file)
 	@printf "$(BLUE)Initializing production environment...$(NC)\n"
 	@if [ -f .env ]; then 		echo "$(RED)✗ .env file already exists!$(NC)"; 		echo "Rename it first: mv .env .env.backup"; 		exit 1; 	fi
@@ -268,10 +287,11 @@ init-env: ## Setup production environment (.env file)
 	@echo ""
 	@printf "$(YELLOW)Next steps:$(NC)\n"
 	@echo "  1. Edit .env and configure SMTP settings"
-	@echo "  2. Run: make enable-auto-setup  (auto-install timers on boot)"
-	@echo "  3. Run: make init-gdrive  (setup Google Drive - optional)"
-	@echo "  4. Run: make start"
-	@echo "  5. Run: make create-admin"
+	@echo "  2. Run: make install-systemd  (enable auto-start on boot)"
+	@echo "  3. Run: make enable-auto-setup  (auto-install timers on boot)"
+	@echo "  4. Run: make init-gdrive  (setup Google Drive - optional)"
+	@echo "  5. Run: make start"
+	@echo "  6. Run: make create-admin"
 
 init-gdrive: ## Setup Google Drive OAuth (one-time)
 	@./scripts/init-gdrive.sh
