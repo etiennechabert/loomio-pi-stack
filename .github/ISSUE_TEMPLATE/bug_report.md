@@ -42,7 +42,7 @@ If applicable, add screenshots to help explain your problem.
 Add any other context about the problem here.
 
 ## Configuration
-- [ ] Using default .env.example configuration
+- [ ] Using default .env.production.example configuration
 - [ ] Using custom configuration
 - [ ] Using Cloudflare Tunnel
 - [ ] Using Google Drive backups

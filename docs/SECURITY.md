@@ -277,7 +277,7 @@ SMTP_PORT=587  # Use 465 for SSL
 # .gitignore already includes:
 .env
 .env.*
-!.env.example
+!.env.*.example
 
 # Verify
 git status  # Should not show .env

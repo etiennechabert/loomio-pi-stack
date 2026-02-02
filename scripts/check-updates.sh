@@ -13,9 +13,9 @@ EMAIL="${ALERT_EMAIL}"
 LOCKFILE="/tmp/loomio-update-check.lock"
 
 # Load environment variables
-if [ -f "$PROJECT_ROOT/.env.production" ]; then
+if [ -f "$PROJECT_ROOT/.env" ]; then
     set -a
-    source "$PROJECT_ROOT/.env.production"
+    source "$PROJECT_ROOT/.env"
     set +a
 fi
 

@@ -193,7 +193,7 @@ SMTP_PASSWORD=your-app-password
 
 **💡 You don't need to run your own mail server!** Use external SMTP providers like Gmail, SendGrid, or Mailgun.
 
-See **[.env.example](.env.example)** for all options and **[SMTP_SETUP.md](docs/SMTP_SETUP.md)** for email setup.
+See **[.env.production.example](.env.production.example)** for all configuration options and **[SMTP_SETUP.md](docs/SMTP_SETUP.md)** for email setup.
 
 ## Monitoring & Administration
 

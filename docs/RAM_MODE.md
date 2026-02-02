@@ -377,4 +377,4 @@ For issues or questions:
 
 - [BACKUP_GUIDE.md](BACKUP_GUIDE.md) - Backup system architecture
 - [README.md](../README.md) - General setup guide
-- `.env.production` - Configuration reference
+- `.env` - Configuration reference
