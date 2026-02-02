@@ -1,7 +1,7 @@
 # Loomio Pi Stack - Production RAM Mode (Raspberry Pi)
 SHELL := /bin/bash
 
-.PHONY: help start stop restart status logs backup restore sync-gdrive pull-docker-images update-images migrate-db create-admin health rails-console db-console init-env init-gdrive destroy backup-info sidekiq-status sidekiq-retry deploy-email-worker check-updates setup-update-checker install-hourly-tasks hourly-tasks-status run-hourly-tasks install-error-report error-report-status send-error-report enable-auto-setup tunnel-start tunnel-stop tunnel-restart tunnel-status tunnel-update install-systemd
+.PHONY: help start stop restart reload-env status logs backup restore sync-gdrive pull-docker-images update-images migrate-db create-admin health rails-console db-console init-env init-gdrive destroy backup-info sidekiq-status sidekiq-retry deploy-email-worker check-updates setup-update-checker install-hourly-tasks hourly-tasks-status run-hourly-tasks install-error-report error-report-status send-error-report enable-auto-setup tunnel-start tunnel-stop tunnel-restart tunnel-status tunnel-update install-systemd
 
 # Default target
 .DEFAULT_GOAL := help
@@ -33,10 +33,25 @@ stop: ## Stop all containers
 	docker compose stop
 	@printf "$(GREEN)✓ Containers stopped$(NC)\n"
 
-restart: ## Restart all containers
+restart: ## Restart all containers (does NOT reload .env changes)
 	@printf "$(YELLOW)Restarting containers...$(NC)\n"
 	docker compose restart
 	@printf "$(GREEN)✓ Containers restarted$(NC)\n"
+	@printf "$(YELLOW)Note: To reload .env changes, use 'make reload-env'$(NC)\n"
+
+reload-env: ## Reload .env changes by recreating app containers (preserves database)
+	@printf "$(BLUE)Reloading environment variables...$(NC)\n"
+	@printf "$(YELLOW)Recreating app containers (db/redis will not be touched)...$(NC)\n"
+	docker compose up -d --force-recreate app worker channels hocuspocus
+	@printf "$(GREEN)✓ Environment variables reloaded$(NC)\n"
+	@echo ""
+	@echo "Recreated containers with new .env values:"
+	@echo "  • app (main application)"
+	@echo "  • worker (background jobs)"
+	@echo "  • channels (real-time notifications)"
+	@echo "  • hocuspocus (collaborative editing)"
+	@echo ""
+	@echo "Database and Redis preserved (no data loss)"
 
 rebuild: ## Rebuild and restart containers (use after code changes)
 	@printf "$(BLUE)Rebuilding containers...$(NC)\n"
