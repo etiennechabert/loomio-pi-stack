@@ -172,12 +172,13 @@ root_folder_id = {GDRIVE_FOLDER_ID}
             log(f"Keeping manual backup: {filename}")
             kept_count['manual'] += 1
         elif should_delete_backup(backup_type, backup_time):
-            # Delete from Google Drive
+            # Delete from Google Drive (permanently, bypass trash)
             try:
                 subprocess.run([
                     'rclone', 'delete',
                     f"gdrive:{RAILS_ENV}/backups/{filename}",
-                    '--config', config_file
+                    '--config', config_file,
+                    '--drive-use-trash=false'
                 ], check=True, capture_output=True)
                 log(f"Deleted old {backup_type} backup: {filename}")
                 deleted_count[backup_type] += 1

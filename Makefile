@@ -1,7 +1,7 @@
 # Loomio Pi Stack - Production RAM Mode (Raspberry Pi)
 SHELL := /bin/bash
 
-.PHONY: help start stop restart status logs backup restore sync-gdrive pull-docker-images update-images migrate-db create-admin health rails-console db-console init-env init-gdrive destroy backup-info sidekiq-status sidekiq-retry deploy-email-worker check-updates setup-update-checker install-hourly-tasks hourly-tasks-status run-hourly-tasks install-error-report error-report-status send-error-report enable-auto-setup tunnel-start tunnel-stop tunnel-restart tunnel-status tunnel-update
+.PHONY: help start stop restart status logs backup restore sync-gdrive pull-docker-images update-images migrate-db create-admin health rails-console db-console init-env init-gdrive destroy backup-info sidekiq-status sidekiq-retry deploy-email-worker check-updates setup-update-checker install-hourly-tasks hourly-tasks-status run-hourly-tasks install-error-report error-report-status send-error-report enable-auto-setup tunnel-start tunnel-stop tunnel-restart tunnel-status tunnel-update install-systemd
 
 # Default target
 .DEFAULT_GOAL := help
