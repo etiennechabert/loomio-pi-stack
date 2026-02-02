@@ -69,7 +69,7 @@ Enhancement suggestions are welcome! Please:
 
 - Validate syntax: `docker compose config`
 - Test on Raspberry Pi if possible
-- Document new environment variables in `.env.example`
+- Document new environment variables in `.env.production.example`
 - Update relevant documentation
 
 ### Documentation
@@ -218,7 +218,7 @@ loomio-pi-stack/
 │   └── workflows/
 │       └── ci.yml
 ├── docker-compose.yml       # Main stack definition
-├── .env.example             # Environment template
+├── .env.production.example             # Environment template
 ├── *.service                # Systemd units
 ├── README.md                # Main documentation
 ├── QUICKSTART.md            # Setup guide

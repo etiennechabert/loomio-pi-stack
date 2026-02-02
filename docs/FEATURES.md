@@ -802,7 +802,7 @@ docker compose config | grep -i theme
 **Need help?** See other documentation:
 - [QUICKSTART.md](QUICKSTART.md) - Setup guide
 - [README.md](../README.md) - Overview
-- [.env.example](../.env.example) - All options
+- [.env.production.example](../.env.production.example) - All options
 
 ---
 

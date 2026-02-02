@@ -25,7 +25,7 @@ Brief description of the changes in this PR.
 ## Documentation
 - [ ] Updated README.md if needed
 - [ ] Updated relevant guides (QUICKSTART, FEATURES, etc.)
-- [ ] Updated .env.example if new variables added
+- [ ] Updated .env.production.example if new variables added
 - [ ] Updated Makefile help if new commands added
 
 ## Checklist

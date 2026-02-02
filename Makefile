@@ -310,7 +310,7 @@ install-systemd: ## Install systemd service for auto-start on boot
 init-env: ## Setup production environment (.env file)
 	@printf "$(BLUE)Initializing production environment...$(NC)\n"
 	@if [ -f .env ]; then 		echo "$(RED)✗ .env file already exists!$(NC)"; 		echo "Rename it first: mv .env .env.backup"; 		exit 1; 	fi
-	@cp .env.production .env
+	@cp .env.production.example .env
 	@printf "$(BLUE)Generating production secrets...$(NC)\n"
 	@SECRET_KEY_BASE=$$(openssl rand -hex 64); 	LOOMIO_HMAC_KEY=$$(openssl rand -hex 32); 	DEVISE_SECRET=$$(openssl rand -hex 32); 	BACKUP_ENCRYPTION_KEY=$$(openssl rand -hex 32); 	POSTGRES_PASSWORD=$$(openssl rand -base64 32); 	sed -i "s/POSTGRES_PASSWORD=CHANGE_THIS_SECURE_PASSWORD/POSTGRES_PASSWORD=$$POSTGRES_PASSWORD/" .env; 	sed -i "s/SECRET_KEY_BASE=GENERATE_WITH_OPENSSL_RAND_HEX_64/SECRET_KEY_BASE=$$SECRET_KEY_BASE/" .env; 	sed -i "s/LOOMIO_HMAC_KEY=GENERATE_WITH_OPENSSL_RAND_HEX_32/LOOMIO_HMAC_KEY=$$LOOMIO_HMAC_KEY/" .env; 	sed -i "s/DEVISE_SECRET=GENERATE_WITH_OPENSSL_RAND_HEX_32/DEVISE_SECRET=$$DEVISE_SECRET/" .env; 	sed -i "s/BACKUP_ENCRYPTION_KEY=GENERATE_WITH_OPENSSL_RAND_HEX_32/BACKUP_ENCRYPTION_KEY=$$BACKUP_ENCRYPTION_KEY/" .env
 	@printf "$(GREEN)✓ Production environment initialized!$(NC)\n"

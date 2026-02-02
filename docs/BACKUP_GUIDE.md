@@ -355,7 +355,7 @@ cd loomio-pi-stack
 
 ```bash
 # Copy your .env file from backup
-# Or recreate from .env.example
+# Or recreate from .env.production.example
 
 nano .env
 # Fill in all values
