@@ -1,7 +1,7 @@
 # Loomio Pi Stack - Production RAM Mode (Raspberry Pi)
 SHELL := /bin/bash
 
-.PHONY: help start stop restart reload-env status logs backup restore sync-gdrive pull-docker-images update-images migrate-db create-admin health rails-console db-console init-env init-gdrive destroy backup-info sidekiq-status sidekiq-retry deploy-email-worker check-updates setup-update-checker install-hourly-tasks hourly-tasks-status run-hourly-tasks install-error-report error-report-status send-error-report enable-auto-setup tunnel-start tunnel-stop tunnel-restart tunnel-status tunnel-update install-systemd
+.PHONY: help start stop restart reload-env status logs backup restore sync-gdrive pull-docker-images update-images update migrate-db create-admin health rails-console db-console init-env init-gdrive destroy backup-info sidekiq-status sidekiq-retry deploy-email-worker check-updates setup-update-checker install-hourly-tasks hourly-tasks-status run-hourly-tasks install-error-report error-report-status send-error-report enable-auto-setup tunnel-start tunnel-stop tunnel-restart tunnel-status tunnel-update install-systemd
 
 # Default target
 .DEFAULT_GOAL := help
@@ -125,6 +125,21 @@ update-images: ## Pull latest Docker images (manual)
 	@echo "  2. make start"
 	@echo "  3. make migrate-db  (if needed)"
 	@echo "  4. make create-backup"
+
+update: ## Pull and apply new Docker images (preserves database)
+	@printf "$(BLUE)Pulling latest images...$(NC)\n"
+	@docker compose pull
+	@printf "$(GREEN)✓ Images updated$(NC)\n"
+	@printf "$(BLUE)Recreating containers with new images...$(NC)\n"
+	@docker compose up -d
+	@printf "$(GREEN)✓ Containers updated$(NC)\n"
+	@echo ""
+	@echo "Docker Compose automatically recreated containers with new images"
+	@echo "Database and Redis preserved (no data loss)"
+	@echo ""
+	@printf "$(YELLOW)Don't forget:$(NC)\n"
+	@echo "  • Check if migrations needed: make migrate-db"
+	@echo "  • Create backup after updates: make create-backup"
 
 migrate-db: ## Run database migrations (manual)
 	@printf "$(BLUE)Running migrations...$(NC)\n"
