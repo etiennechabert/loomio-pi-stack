@@ -1,7 +1,7 @@
 # Loomio Pi Stack - Production RAM Mode (Raspberry Pi)
 SHELL := /bin/bash
 
-.PHONY: help start stop restart status logs backup restore sync-gdrive pull-docker-images update-images migrate-db create-admin health rails-console db-console init-env init-gdrive destroy backup-info sidekiq-status sidekiq-retry deploy-email-worker check-updates setup-update-checker install-hourly-tasks hourly-tasks-status run-hourly-tasks install-error-report error-report-status send-error-report enable-auto-setup
+.PHONY: help start stop restart status logs backup restore sync-gdrive pull-docker-images update-images migrate-db create-admin health rails-console db-console init-env init-gdrive destroy backup-info sidekiq-status sidekiq-retry deploy-email-worker check-updates setup-update-checker install-hourly-tasks hourly-tasks-status run-hourly-tasks install-error-report error-report-status send-error-report enable-auto-setup tunnel-start tunnel-stop tunnel-restart tunnel-status
 
 # Default target
 .DEFAULT_GOAL := help
@@ -56,6 +56,31 @@ destroy: ## Remove all containers, volumes, and data (WARNING: DELETES EVERYTHIN
 
 logs: ## Show container logs (usage: make logs [SERVICE=app])
 	@docker compose logs -f --since 24h $(if $(SERVICE),$(SERVICE),app worker channels hocuspocus backup)
+
+##@ Cloudflare Tunnel
+
+tunnel-start: ## Start Cloudflare tunnel (requires CLOUDFLARE_TUNNEL_TOKEN in .env)
+	@printf "$(BLUE)Starting Cloudflare tunnel...$(NC)\n"
+	docker compose --profile cloudflare up -d cloudflared
+	@printf "$(GREEN)✓ Cloudflare tunnel started$(NC)\n"
+
+tunnel-stop: ## Stop Cloudflare tunnel
+	@printf "$(YELLOW)Stopping Cloudflare tunnel...$(NC)\n"
+	docker compose stop cloudflared
+	@printf "$(GREEN)✓ Cloudflare tunnel stopped$(NC)\n"
+
+tunnel-restart: ## Restart Cloudflare tunnel
+	@printf "$(YELLOW)Restarting Cloudflare tunnel...$(NC)\n"
+	docker compose restart cloudflared
+	@printf "$(GREEN)✓ Cloudflare tunnel restarted$(NC)\n"
+
+tunnel-status: ## Show Cloudflare tunnel status and logs
+	@printf "$(BLUE)Cloudflare Tunnel Status$(NC)\n"
+	@printf "$(BLUE)═══════════════════════════════════════════════════$(NC)\n"
+	@docker compose --profile cloudflare ps cloudflared
+	@echo ""
+	@printf "$(BLUE)Recent logs:$(NC)\n"
+	@docker compose logs --tail 20 cloudflared 2>/dev/null || echo "Tunnel not running"
 
 ##@ Manual Operations
 
