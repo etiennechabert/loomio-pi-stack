@@ -58,6 +58,7 @@ services:
       - ./data/production/uploads/storage:/loomio/storage
       - ./data/production/uploads/files:/loomio/public/files
       - ./config/locales.yml:/loomio/config/locales.yml:ro
+      - ./config/environments/staging.rb:/loomio/config/environments/staging.rb:ro
       - app-plugins:/loomio/plugins
       - app-import:/import
       - app-tmp:/loomio/tmp
@@ -97,6 +98,7 @@ services:
       - ./data/production/uploads/system:/loomio/public/system
       - ./data/production/uploads/storage:/loomio/storage
       - ./data/production/uploads/files:/loomio/public/files
+      - ./config/environments/staging.rb:/loomio/config/environments/staging.rb:ro
       - app-plugins:/loomio/plugins
       - app-import:/import
       - app-tmp:/loomio/tmp
