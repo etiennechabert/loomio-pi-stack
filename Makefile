@@ -1,7 +1,7 @@
 # Loomio Pi Stack - Production RAM Mode (Raspberry Pi)
 SHELL := /bin/bash
 
-.PHONY: help start stop restart status logs backup restore sync-gdrive pull-docker-images update-images migrate-db create-admin health rails-console db-console init-env init-gdrive destroy backup-info sidekiq-status sidekiq-retry deploy-email-worker check-updates setup-update-checker install-hourly-tasks hourly-tasks-status run-hourly-tasks install-error-report error-report-status send-error-report enable-auto-setup tunnel-start tunnel-stop tunnel-restart tunnel-status
+.PHONY: help start stop restart status logs backup restore sync-gdrive pull-docker-images update-images migrate-db create-admin health rails-console db-console init-env init-gdrive destroy backup-info sidekiq-status sidekiq-retry deploy-email-worker check-updates setup-update-checker install-hourly-tasks hourly-tasks-status run-hourly-tasks install-error-report error-report-status send-error-report enable-auto-setup tunnel-start tunnel-stop tunnel-restart tunnel-status tunnel-update
 
 # Default target
 .DEFAULT_GOAL := help
@@ -81,6 +81,18 @@ tunnel-status: ## Show Cloudflare tunnel status and logs
 	@echo ""
 	@printf "$(BLUE)Recent logs:$(NC)\n"
 	@docker compose logs --tail 20 cloudflared 2>/dev/null || echo "Tunnel not running"
+
+tunnel-update: ## Update Cloudflare tunnel image and restart
+	@printf "$(BLUE)Pulling latest Cloudflare tunnel image...$(NC)\n"
+	docker compose --profile cloudflare pull cloudflared
+	@printf "$(GREEN)✓ Image updated$(NC)\n"
+	@if docker compose ps cloudflared 2>/dev/null | grep -q "Up"; then \
+		printf "$(BLUE)Restarting tunnel...$(NC)\n"; \
+		docker compose --profile cloudflare up -d cloudflared; \
+		printf "$(GREEN)✓ Tunnel restarted with new image$(NC)\n"; \
+	else \
+		printf "$(YELLOW)Tunnel not running, start with: make tunnel-start$(NC)\n"; \
+	fi
 
 ##@ Manual Operations
 
