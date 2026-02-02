@@ -27,7 +27,7 @@ jobs:
 
     - name: Create dummy .env for validation
       run: |
-        cp .env.example .env
+        cp .env.production.example .env
         sed -i 's/SECRET_KEY_BASE=.*/SECRET_KEY_BASE=test123/' .env
         sed -i 's/POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=test123/' .env
         sed -i 's/LOOMIO_HMAC_KEY=.*/LOOMIO_HMAC_KEY=test123/' .env
@@ -39,31 +39,31 @@ jobs:
     - name: Check for required files
       run: |
         echo "Checking required files..."
-        test -f .env.example || { echo "❌ .env.example missing"; exit 1; }
+        test -f .env.production.example || { echo "❌ .env.production.example missing"; exit 1; }
         test -f docker-compose.yml || { echo "❌ docker-compose.yml missing"; exit 1; }
         test -f README.md || { echo "❌ README.md missing"; exit 1; }
         test -f Makefile || { echo "❌ Makefile missing"; exit 1; }
         echo "✅ All required files present"
 
-    - name: Validate .env.example completeness
+    - name: Validate .env.production.example completeness
       run: |
-        echo "Validating .env.example..."
+        echo "Validating .env.production.example..."
 
         # Required variables
-        grep -q "POSTGRES_PASSWORD=" .env.example || { echo "❌ Missing POSTGRES_PASSWORD"; exit 1; }
-        grep -q "SECRET_KEY_BASE=" .env.example || { echo "❌ Missing SECRET_KEY_BASE"; exit 1; }
-        grep -q "SMTP_SERVER=" .env.example || { echo "❌ Missing SMTP_SERVER"; exit 1; }
-        grep -q "CANONICAL_HOST=" .env.example || { echo "❌ Missing CANONICAL_HOST"; exit 1; }
-        grep -q "LOOMIO_HMAC_KEY=" .env.example || { echo "❌ Missing LOOMIO_HMAC_KEY"; exit 1; }
-        grep -q "BACKUP_ENCRYPTION_KEY=" .env.example || { echo "❌ Missing BACKUP_ENCRYPTION_KEY"; exit 1; }
+        grep -q "POSTGRES_PASSWORD=" .env.production.example || { echo "❌ Missing POSTGRES_PASSWORD"; exit 1; }
+        grep -q "SECRET_KEY_BASE=" .env.production.example || { echo "❌ Missing SECRET_KEY_BASE"; exit 1; }
+        grep -q "SMTP_SERVER=" .env.production.example || { echo "❌ Missing SMTP_SERVER"; exit 1; }
+        grep -q "CANONICAL_HOST=" .env.production.example || { echo "❌ Missing CANONICAL_HOST"; exit 1; }
+        grep -q "LOOMIO_HMAC_KEY=" .env.production.example || { echo "❌ Missing LOOMIO_HMAC_KEY"; exit 1; }
+        grep -q "BACKUP_ENCRYPTION_KEY=" .env.production.example || { echo "❌ Missing BACKUP_ENCRYPTION_KEY"; exit 1; }
 
         # Check no real secrets are committed
-        if grep -E "SECRET_KEY_BASE=[a-f0-9]{128}" .env.example; then
-          echo "❌ Real secret found in .env.example!"
+        if grep -E "SECRET_KEY_BASE=[a-f0-9]{128}" .env.production.example; then
+          echo "❌ Real secret found in .env.production.example!"
           exit 1
         fi
 
-        echo "✅ .env.example validation passed"
+        echo "✅ .env.production.example validation passed"
 
     - name: Check script permissions
       run: |
@@ -188,7 +188,7 @@ jobs:
     - name: Check for secrets in code
       run: |
         echo "Scanning for potential secrets..."
-        if git grep -E "(password|secret|token|key|api_key).*=.*['\"][a-zA-Z0-9]{20,}['\"]" -- ':!.env.example' ':!*.md' ':!.github/workflows/*'; then
+        if git grep -E "(password|secret|token|key|api_key).*=.*['\"][a-zA-Z0-9]{20,}['\"]" -- ':!.env.*.example' ':!*.md' ':!.github/workflows/*'; then
           echo "❌ Potential secrets found in tracked files!"
           exit 1
         fi
@@ -250,7 +250,7 @@ jobs:
 
     - name: Create dummy .env
       run: |
-        cp .env.example .env
+        cp .env.production.example .env
         # Set dummy values for required fields
         sed -i 's/POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=test123/' .env
         sed -i 's/SECRET_KEY_BASE=.*/SECRET_KEY_BASE=test/' .env

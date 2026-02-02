@@ -167,7 +167,7 @@ jobs:
 
         # Check for common secret patterns (excluding Makefile variable references like $$VAR)
         if git grep -E "(password|passwd|pwd|secret|token|api_key|apikey|access_key|private_key)\s*[:=]\s*['\"][^'\"$]{8,}['\"]" -- \
-          ':!.env.example' ':!*.md' ':!.github/workflows/*' ':!SMTP_SETUP.md' ':!FEATURES.md' ':!BACKUP_GUIDE.md' ':!Makefile'; then
+          ':!.env.*.example' ':!*.md' ':!.github/workflows/*' ':!SMTP_SETUP.md' ':!FEATURES.md' ':!BACKUP_GUIDE.md' ':!Makefile'; then
           echo "❌ Potential hardcoded secrets found!"
           exit 1
         fi
@@ -178,9 +178,9 @@ jobs:
       run: |
         echo "Checking for overly permissive files..."
 
-        # Check .env.example doesn't have real values
-        if grep -E "POSTGRES_PASSWORD=(?!change-this-secure-password)" .env.example; then
-          echo "❌ Real password in .env.example"
+        # Check .env.production.example doesn't have real values
+        if grep -E "POSTGRES_PASSWORD=(?!change-this-secure-password)" .env.production.example; then
+          echo "❌ Real password in .env.production.example"
           exit 1
         fi
 
