@@ -1,7 +1,7 @@
 # Loomio Pi Stack - Production RAM Mode (Raspberry Pi)
 SHELL := /bin/bash
 
-.PHONY: help start stop restart status logs backup restore sync-gdrive pull-docker-images update-images migrate-db create-admin health rails-console db-console init-env init-gdrive destroy backup-info sidekiq-status sidekiq-retry deploy-email-worker check-updates setup-update-checker install-hourly-tasks hourly-tasks-status run-hourly-tasks install-error-report error-report-status send-error-report enable-auto-setup tunnel-start tunnel-stop tunnel-restart tunnel-status
+.PHONY: help start stop restart reload-env status logs backup restore sync-gdrive pull-docker-images update-images update migrate-db create-admin health rails-console db-console init-env init-gdrive destroy backup-info sidekiq-status sidekiq-retry deploy-email-worker check-updates setup-update-checker install-hourly-tasks hourly-tasks-status run-hourly-tasks install-error-report error-report-status send-error-report enable-auto-setup tunnel-start tunnel-stop tunnel-restart tunnel-status tunnel-update install-systemd
 
 # Default target
 .DEFAULT_GOAL := help
@@ -33,10 +33,25 @@ stop: ## Stop all containers
 	docker compose stop
 	@printf "$(GREEN)✓ Containers stopped$(NC)\n"
 
-restart: ## Restart all containers
+restart: ## Restart all containers (does NOT reload .env changes)
 	@printf "$(YELLOW)Restarting containers...$(NC)\n"
 	docker compose restart
 	@printf "$(GREEN)✓ Containers restarted$(NC)\n"
+	@printf "$(YELLOW)Note: To reload .env changes, use 'make reload-env'$(NC)\n"
+
+reload-env: ## Reload .env changes by recreating app containers (preserves database)
+	@printf "$(BLUE)Reloading environment variables...$(NC)\n"
+	@printf "$(YELLOW)Recreating app containers (db/redis will not be touched)...$(NC)\n"
+	docker compose up -d --force-recreate app worker channels hocuspocus
+	@printf "$(GREEN)✓ Environment variables reloaded$(NC)\n"
+	@echo ""
+	@echo "Recreated containers with new .env values:"
+	@echo "  • app (main application)"
+	@echo "  • worker (background jobs)"
+	@echo "  • channels (real-time notifications)"
+	@echo "  • hocuspocus (collaborative editing)"
+	@echo ""
+	@echo "Database and Redis preserved (no data loss)"
 
 rebuild: ## Rebuild and restart containers (use after code changes)
 	@printf "$(BLUE)Rebuilding containers...$(NC)\n"
@@ -82,6 +97,18 @@ tunnel-status: ## Show Cloudflare tunnel status and logs
 	@printf "$(BLUE)Recent logs:$(NC)\n"
 	@docker compose logs --tail 20 cloudflared 2>/dev/null || echo "Tunnel not running"
 
+tunnel-update: ## Update Cloudflare tunnel image and restart
+	@printf "$(BLUE)Pulling latest Cloudflare tunnel image...$(NC)\n"
+	docker compose --profile cloudflare pull cloudflared
+	@printf "$(GREEN)✓ Image updated$(NC)\n"
+	@if docker compose ps cloudflared 2>/dev/null | grep -q "Up"; then \
+		printf "$(BLUE)Restarting tunnel...$(NC)\n"; \
+		docker compose --profile cloudflare up -d cloudflared; \
+		printf "$(GREEN)✓ Tunnel restarted with new image$(NC)\n"; \
+	else \
+		printf "$(YELLOW)Tunnel not running, start with: make tunnel-start$(NC)\n"; \
+	fi
+
 ##@ Manual Operations
 
 pull-docker-images: ## Pull all Docker images from docker-compose
@@ -98,6 +125,21 @@ update-images: ## Pull latest Docker images (manual)
 	@echo "  2. make start"
 	@echo "  3. make migrate-db  (if needed)"
 	@echo "  4. make create-backup"
+
+update: ## Pull and apply new Docker images (preserves database)
+	@printf "$(BLUE)Pulling latest images...$(NC)\n"
+	@docker compose pull
+	@printf "$(GREEN)✓ Images updated$(NC)\n"
+	@printf "$(BLUE)Recreating containers with new images...$(NC)\n"
+	@docker compose up -d
+	@printf "$(GREEN)✓ Containers updated$(NC)\n"
+	@echo ""
+	@echo "Docker Compose automatically recreated containers with new images"
+	@echo "Database and Redis preserved (no data loss)"
+	@echo ""
+	@printf "$(YELLOW)Don't forget:$(NC)\n"
+	@echo "  • Check if migrations needed: make migrate-db"
+	@echo "  • Create backup after updates: make create-backup"
 
 migrate-db: ## Run database migrations (manual)
 	@printf "$(BLUE)Running migrations...$(NC)\n"
@@ -246,6 +288,25 @@ install: ## Install Docker and dependencies (Raspberry Pi)
 	@sudo apt install -y git openssl make rclone
 	@printf "$(GREEN)✓ Installation complete!$(NC)\n"
 
+install-systemd: ## Install systemd service for auto-start on boot
+	@printf "$(BLUE)Installing Loomio systemd service...$(NC)\n"
+	@sudo cp loomio.service /etc/systemd/system/
+	@sed 's|/home/pi/loomio-pi-stack|$(PWD)|g' loomio.service | sudo tee /etc/systemd/system/loomio.service > /dev/null
+	@sudo cp loomio-watchdog.service loomio-watchdog.timer /etc/systemd/system/
+	@sed 's|/home/pi/loomio-pi-stack|$(PWD)|g' loomio-watchdog.service | sudo tee /etc/systemd/system/loomio-watchdog.service > /dev/null
+	@sudo systemctl daemon-reload
+	@sudo systemctl enable loomio.service
+	@sudo systemctl enable loomio-watchdog.timer
+	@sudo systemctl start loomio-watchdog.timer
+	@printf "$(GREEN)✓ Systemd service installed and enabled$(NC)\n"
+	@echo ""
+	@echo "Loomio will now start automatically on boot"
+	@echo "Services installed:"
+	@echo "  • loomio.service - Main application (starts Docker Compose)"
+	@echo "  • loomio-watchdog.timer - Health monitoring (every 5 minutes)"
+	@echo ""
+	@echo "Verify status: sudo systemctl status loomio.service"
+
 init-env: ## Setup production environment (.env file)
 	@printf "$(BLUE)Initializing production environment...$(NC)\n"
 	@if [ -f .env ]; then 		echo "$(RED)✗ .env file already exists!$(NC)"; 		echo "Rename it first: mv .env .env.backup"; 		exit 1; 	fi
@@ -256,10 +317,11 @@ init-env: ## Setup production environment (.env file)
 	@echo ""
 	@printf "$(YELLOW)Next steps:$(NC)\n"
 	@echo "  1. Edit .env and configure SMTP settings"
-	@echo "  2. Run: make enable-auto-setup  (auto-install timers on boot)"
-	@echo "  3. Run: make init-gdrive  (setup Google Drive - optional)"
-	@echo "  4. Run: make start"
-	@echo "  5. Run: make create-admin"
+	@echo "  2. Run: make install-systemd  (enable auto-start on boot)"
+	@echo "  3. Run: make enable-auto-setup  (auto-install timers on boot)"
+	@echo "  4. Run: make init-gdrive  (setup Google Drive - optional)"
+	@echo "  5. Run: make start"
+	@echo "  6. Run: make create-admin"
 
 init-gdrive: ## Setup Google Drive OAuth (one-time)
 	@./scripts/init-gdrive.sh

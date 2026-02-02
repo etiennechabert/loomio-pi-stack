@@ -36,7 +36,7 @@ services:
 
   # Loomio App
   app:
-    image: loomio/loomio:master-arm64
+    image: wizmoisa/loomio:master
     container_name: loomio-app
     restart: unless-stopped
     depends_on:
@@ -76,7 +76,7 @@ services:
 
   # Loomio Worker
   worker:
-    image: loomio/loomio:master-arm64
+    image: wizmoisa/loomio:master
     container_name: loomio-worker
     restart: unless-stopped
     depends_on:
