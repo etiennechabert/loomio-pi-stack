@@ -31,7 +31,7 @@ EOF
 
 # Sync database backups to {environment}/backups/
 echo "Syncing database backups to ${ENV_NAME}/backups/..."
-rclone sync "/backups" "gdrive:${ENV_NAME}/backups" \
+rclone copy "/backups" "gdrive:${ENV_NAME}/backups" \
     --config "$RCLONE_CONFIG_DIR/rclone.conf" \
     --transfers 4 \
     --checkers 8 \
