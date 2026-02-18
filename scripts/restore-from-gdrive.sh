@@ -39,11 +39,6 @@ log "${BLUE}══════════════════════�
 # Get environment name
 ENV_NAME="${RAILS_ENV:-production}"
 
-# Clean local backup directory to avoid restoring bad backups
-log "${BLUE}Cleaning local backup directory...${NC}"
-sudo rm -f ./data/production/backups/*.sql.enc
-log "${GREEN}✓ Local backups cleaned${NC}"
-
 # Download latest database backup
 log "${BLUE}Downloading latest database backup...${NC}"
 docker exec loomio-backup bash -c "
