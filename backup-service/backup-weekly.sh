@@ -1,16 +1,16 @@
 #!/bin/bash
 #
-# Monthly Backup Script
-# Runs on the 1st of each month at 3 AM
-# Retention: 12 months (365 days)
+# Weekly Backup Script
+# Runs every Monday at midnight
+# Retention: 12 weeks (84 days)
 #
 
 set -e
 
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting monthly backup..."
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting weekly backup..."
 
-# Create monthly backup
-python3 /app/backup.py --type monthly
+# Create weekly backup
+python3 /app/backup.py --type weekly
 
 # Sync to Google Drive if enabled
 if [ "${GDRIVE_ENABLED}" = "true" ]; then
@@ -18,7 +18,7 @@ if [ "${GDRIVE_ENABLED}" = "true" ]; then
     bash /app/sync-data.sh
 
     if [ $? -eq 0 ]; then
-        echo "[$(date '+%Y-%m-%d %H:%M:%S')] ✓ Monthly backup synced to Google Drive"
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] ✓ Weekly backup synced to Google Drive"
 
         # Clean up old backups from Google Drive
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] Cleaning up old backups from Google Drive..."
@@ -30,4 +30,4 @@ else
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: Google Drive sync disabled"
 fi
 
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] Monthly backup completed"
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Weekly backup completed"
