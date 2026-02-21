@@ -2,10 +2,10 @@
 """
 Google Drive Backup Cleanup
 Removes old backups from Google Drive based on retention policies:
-- Hourly: 48 hours
-- Daily: 30 days
-- Monthly: 12 months (365 days)
-- Manual: Never deleted
+- Hourly: 24 hours
+- Daily: 14 days
+- Weekly: 12 weeks (84 days)
+- Manual: 30 days (sent to GDrive trash, recoverable ~30 more days)
 """
 
 import os
@@ -22,10 +22,10 @@ RAILS_ENV = os.getenv('RAILS_ENV', 'production')
 
 # Retention rules (in hours for hourly, days for others)
 RETENTION_RULES = {
-    'hourly': 48,    # 48 hours
-    'daily': 30,     # 30 days
-    'monthly': 365,  # 12 months
-    'manual': None   # Never delete
+    'hourly': 24,    # 24 hours
+    'daily': 7,      # 7 days
+    'weekly': 84,    # 12 weeks (84 days)
+    'manual': 30,    # 30 days (sent to GDrive trash, recoverable ~30 more days)
 }
 
 
@@ -80,18 +80,24 @@ def classify_backup(filename):
         except ValueError:
             return (None, None)
 
-    elif filename.startswith('loomio-monthly-'):
-        # Format: loomio-monthly-YYYYMM.sql.enc
+    elif filename.startswith('loomio-weekly-'):
+        # Format: loomio-weekly-YYYYMMDD.sql.enc
         try:
-            date_str = filename.replace('loomio-monthly-', '').replace('.sql.enc', '')
-            timestamp = datetime.strptime(date_str, '%Y%m')
-            return ('monthly', timestamp)
+            date_str = filename.replace('loomio-weekly-', '').replace('.sql.enc', '')
+            timestamp = datetime.strptime(date_str, '%Y%m%d')
+            return ('weekly', timestamp)
         except ValueError:
             return (None, None)
 
     elif filename.startswith('loomio-manual-'):
-        # Manual backups are never deleted
-        return ('manual', None)
+        # Format: loomio-manual-YYYYMMDD-HHmmss[-reason].sql.enc
+        try:
+            date_str = filename.replace('loomio-manual-', '').replace('.sql.enc', '')
+            # Extract just the date-time part (first 15 chars: YYYYMMDD-HHmmss)
+            timestamp = datetime.strptime(date_str[:15], '%Y%m%d-%H%M%S')
+            return ('manual', timestamp)
+        except ValueError:
+            return (None, None)
 
     else:
         # Unknown format
@@ -102,7 +108,7 @@ def should_delete_backup(backup_type, backup_time):
     """Check if backup should be deleted based on retention policy
 
     Args:
-        backup_type: One of 'hourly', 'daily', 'monthly', 'manual'
+        backup_type: One of 'hourly', 'daily', 'weekly', 'manual'
         backup_time: datetime object of backup creation time
 
     Returns:
@@ -110,7 +116,6 @@ def should_delete_backup(backup_type, backup_time):
     """
     retention = RETENTION_RULES.get(backup_type)
 
-    # Manual backups are never deleted
     if retention is None:
         return False
 
@@ -155,8 +160,8 @@ root_folder_id = {GDRIVE_FOLDER_ID}
         return
 
     # Process each backup
-    deleted_count = {'hourly': 0, 'daily': 0, 'monthly': 0, 'manual': 0, 'unknown': 0}
-    kept_count = {'hourly': 0, 'daily': 0, 'monthly': 0, 'manual': 0, 'unknown': 0}
+    deleted_count = {'hourly': 0, 'daily': 0, 'weekly': 0, 'manual': 0, 'unknown': 0}
+    kept_count = {'hourly': 0, 'daily': 0, 'weekly': 0, 'manual': 0, 'unknown': 0}
 
     for backup in backups:
         filename = backup['Name']
@@ -167,19 +172,17 @@ root_folder_id = {GDRIVE_FOLDER_ID}
             kept_count['unknown'] += 1
             continue
 
-        # Check if should delete
-        if backup_type == 'manual':
-            log(f"Keeping manual backup: {filename}")
-            kept_count['manual'] += 1
-        elif should_delete_backup(backup_type, backup_time):
-            # Delete from Google Drive (permanently, bypass trash)
+        if should_delete_backup(backup_type, backup_time):
+            # Hourly: permanent delete; daily/weekly/manual: send to GDrive trash (recoverable ~30 days)
+            delete_cmd = [
+                'rclone', 'delete',
+                f"gdrive:{RAILS_ENV}/backups/{filename}",
+                '--config', config_file,
+            ]
+            if backup_type == 'hourly':
+                delete_cmd.append('--drive-use-trash=false')
             try:
-                subprocess.run([
-                    'rclone', 'delete',
-                    f"gdrive:{RAILS_ENV}/backups/{filename}",
-                    '--config', config_file,
-                    '--drive-use-trash=false'
-                ], check=True, capture_output=True)
+                subprocess.run(delete_cmd, check=True, capture_output=True)
                 log(f"Deleted old {backup_type} backup: {filename}")
                 deleted_count[backup_type] += 1
             except subprocess.CalledProcessError as e:
@@ -194,7 +197,7 @@ root_folder_id = {GDRIVE_FOLDER_ID}
     # Summary
     log("=" * 60)
     log("Google Drive Cleanup Summary:")
-    for backup_type in ['hourly', 'daily', 'monthly', 'manual']:
+    for backup_type in ['hourly', 'daily', 'weekly', 'manual']:
         if deleted_count[backup_type] > 0 or kept_count[backup_type] > 0:
             log(f"  {backup_type.title()}: Deleted {deleted_count[backup_type]}, Kept {kept_count[backup_type]}")
     log("=" * 60)
