@@ -4,10 +4,10 @@ Loomio Backup Service
 Automated PostgreSQL database backups with encryption and Google Drive upload
 
 Supports multiple backup types:
-- hourly: Frequent backups (48h retention)
-- daily: Daily backups (30d retention)
-- monthly: Monthly backups (12mo retention)
-- manual: User-triggered with reason (never deleted)
+- hourly: Frequent backups (24h retention)
+- daily: Daily backups (7d retention)
+- weekly: Weekly backups (12wk retention)
+- manual: User-triggered with reason (30d retention)
 """
 
 import os
@@ -35,10 +35,10 @@ RAILS_ENV = os.getenv('RAILS_ENV', 'production')
 
 # Backup type retention rules (in hours for hourly, days for others)
 RETENTION_RULES = {
-    'hourly': 48,    # 48 hours (keep last 48 backups)
-    'daily': 30,     # 30 days
-    'monthly': 365,  # 12 months (365 days)
-    'manual': None   # Never delete
+    'hourly': 24,    # 24 hours
+    'daily': 7,      # 7 days
+    'weekly': 84,    # 12 weeks (84 days)
+    'manual': 30,    # 30 days
 }
 
 
@@ -79,7 +79,7 @@ def get_backup_filename(backup_type, reason=None):
     """Generate filename based on backup type
 
     Args:
-        backup_type: One of 'hourly', 'daily', 'monthly', 'manual'
+        backup_type: One of 'hourly', 'daily', 'weekly', 'manual'
         reason: Optional reason for manual backups
 
     Returns:
@@ -93,9 +93,9 @@ def get_backup_filename(backup_type, reason=None):
     elif backup_type == 'daily':
         # Format: loomio-daily-YYYYMMDD
         return f"loomio-daily-{now.strftime('%Y%m%d')}"
-    elif backup_type == 'monthly':
-        # Format: loomio-monthly-YYYYMM
-        return f"loomio-monthly-{now.strftime('%Y%m')}"
+    elif backup_type == 'weekly':
+        # Format: loomio-weekly-YYYYMMDD
+        return f"loomio-weekly-{now.strftime('%Y%m%d')}"
     elif backup_type == 'manual':
         # Format: loomio-manual-YYYYMMDD-HHmmss-<reason>
         if reason:
@@ -114,7 +114,7 @@ def create_database_backup(backup_type='hourly', reason=None):
     """Create PostgreSQL database dump
 
     Args:
-        backup_type: One of 'hourly', 'daily', 'monthly', 'manual'
+        backup_type: One of 'hourly', 'daily', 'weekly', 'manual'
         reason: Optional reason for manual backups
     """
     backup_filename = get_backup_filename(backup_type, reason) + '.sql'
@@ -233,13 +233,12 @@ def cleanup_old_backups(backup_type='hourly'):
     """Remove backups older than retention period based on backup type
 
     Args:
-        backup_type: One of 'hourly', 'daily', 'monthly', 'manual'
+        backup_type: One of 'hourly', 'daily', 'weekly', 'manual'
     """
     retention = RETENTION_RULES.get(backup_type)
 
-    # Manual backups are never deleted
     if retention is None:
-        log(f"Skipping cleanup for {backup_type} backups (permanent)")
+        log(f"Skipping cleanup for {backup_type} backups (no retention rule)")
         return
 
     # Calculate cutoff based on retention period
@@ -273,7 +272,7 @@ def main():
     import argparse
     parser = argparse.ArgumentParser(description='Loomio Database Backup')
     parser.add_argument('--type', '-t', default='hourly',
-                        choices=['hourly', 'daily', 'monthly', 'manual'],
+                        choices=['hourly', 'daily', 'weekly', 'manual'],
                         help='Backup type (default: hourly)')
     parser.add_argument('--reason', '-r', default=None,
                         help='Reason for manual backup')
@@ -300,16 +299,13 @@ def main():
     # Encrypt backup
     final_path = encrypt_backup(backup_path)
 
-    # Cleanup old backups (only for automatic backups)
-    if backup_type != 'manual':
-        cleanup_old_backups(backup_type)
+    # Cleanup old backups
+    cleanup_old_backups(backup_type)
 
     # Summary
     log("=" * 60)
     log("Backup Process Completed Successfully")
     log(f"Final backup: {final_path.name}")
-    if backup_type == 'manual':
-        log("Note: Manual backups are never automatically deleted")
     log("=" * 60)
 
 

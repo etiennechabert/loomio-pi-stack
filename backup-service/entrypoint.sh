@@ -29,10 +29,10 @@ echo "  Environment: ${RAILS_ENV}"
 echo "  Storage: $([ "$IS_RAM_MODE" = "true" ] && echo "RAM (tmpfs)" || echo "Disk (volumes)")"
 echo "  Database: ${DB_USER}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
 echo "  Backup Schedule:"
-echo "    - Hourly:  Hours 1-23 (48h retention)"
-echo "    - Daily:   Midnight on days 2-31 (30d retention)"
-echo "    - Monthly: Midnight on 1st of month (12mo retention)"
-echo "    - Manual:  On-demand (permanent)"
+echo "    - Hourly:  Hours 1-23 (24h retention, permanent delete)"
+echo "    - Daily:   Midnight Sun,Tue-Sat (7d retention, 30d in GDrive trash)"
+echo "    - Weekly:  Midnight Monday (12wk retention, 30d in GDrive trash)"
+echo "    - Manual:  On-demand (30d retention, 30d in GDrive trash)"
 echo "  Google Drive: ${GDRIVE_ENABLED}"
 echo ""
 
@@ -200,14 +200,14 @@ GDRIVE_TOKEN=${GDRIVE_TOKEN}
 GDRIVE_FOLDER_ID=${GDRIVE_FOLDER_ID}
 RAILS_ENV=${RAILS_ENV}
 
-# Hourly backups (48h retention) - Hours 1-23 (skips midnight for daily/monthly)
+# Hourly backups (24h retention) - Hours 1-23 (skips midnight for daily/weekly)
 0 1-23 * * * /app/backup-hourly.sh >> /proc/1/fd/1 2>&1
 
-# Daily backups at midnight (30d retention) - Days 2-31 (skips 1st for monthly)
-0 0 2-31 * * /app/backup-daily.sh >> /proc/1/fd/1 2>&1
+# Daily backups at midnight (7d retention) - skips Monday for weekly
+0 0 * * 0,2-6 /app/backup-daily.sh >> /proc/1/fd/1 2>&1
 
-# Monthly backups at midnight on 1st of month (12mo retention)
-0 0 1 * * /app/backup-monthly.sh >> /proc/1/fd/1 2>&1
+# Weekly backups at midnight on Monday (12wk retention)
+0 0 * * 1 /app/backup-weekly.sh >> /proc/1/fd/1 2>&1
 
 EOF
 
@@ -215,8 +215,8 @@ echo ""
 echo "Backup service started successfully"
 echo "Cron schedules active:"
 echo "  - Hourly:  0 1-23 * * * (hours 1-23)"
-echo "  - Daily:   0 0 2-31 * * (midnight, days 2-31)"
-echo "  - Monthly: 0 0 1 * * (midnight, 1st of month)"
+echo "  - Daily:   0 0 * * 0,2-6 (midnight, Sun,Tue-Sat)"
+echo "  - Weekly:  0 0 * * 1 (midnight, Monday)"
 echo ""
 echo "Logs will appear below:"
 echo "================================="

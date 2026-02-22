@@ -6,25 +6,25 @@ This backup service implements a comprehensive multi-tier backup strategy for Lo
 
 ### 1. Hourly Backups
 - **Schedule**: Hours 1-23 (`0 1-23 * * *`)
-- **Retention**: 48 hours (last 48 backups)
+- **Retention**: 24 hours (permanent delete)
 - **Format**: `loomio-hourly-YYYYMMDD-HHmmss.sql.enc`
 - **Purpose**: Quick recovery from recent issues
 
 ### 2. Daily Backups
-- **Schedule**: Midnight on days 2-31 (`0 0 2-31 * *`)
-- **Retention**: 30 days
+- **Schedule**: Midnight Sun,Tue-Sat (`0 0 * * 0,2-6`)
+- **Retention**: 7 days (30d in GDrive trash)
 - **Format**: `loomio-daily-YYYYMMDD.sql.enc`
 - **Purpose**: Medium-term recovery
 
-### 3. Monthly Backups
-- **Schedule**: Midnight on 1st of month (`0 0 1 * *`)
-- **Retention**: 12 months (365 days)
-- **Format**: `loomio-monthly-YYYYMM.sql.enc`
+### 3. Weekly Backups
+- **Schedule**: Midnight Monday (`0 0 * * 1`)
+- **Retention**: 12 weeks / 84 days (30d in GDrive trash)
+- **Format**: `loomio-weekly-YYYYMMDD.sql.enc`
 - **Purpose**: Long-term archival
 
 ### 4. Manual Backups
 - **Trigger**: User-initiated via `make create-backup`
-- **Retention**: **Never deleted** (permanent)
+- **Retention**: 30 days (30d in GDrive trash)
 - **Format**: `loomio-manual-YYYYMMDD-HHmmss-<reason>.sql.enc`
 - **Purpose**: Important milestones (updates, migrations, etc.)
 
@@ -68,9 +68,9 @@ make restore-backup
 1. **backup.py** - Core backup logic with type support
 2. **backup-hourly.sh** - Hourly backup wrapper
 3. **backup-daily.sh** - Daily backup wrapper
-4. **backup-monthly.sh** - Monthly backup wrapper
+4. **backup-weekly.sh** - Weekly backup wrapper
 5. **cleanup-gdrive.py** - Google Drive retention manager
-6. **sync-data.sh** - Upload to Google Drive
+6. **upload-to-gdrive.sh** - Upload to Google Drive
 7. **entrypoint.sh** - Cron scheduler setup
 
 ### Backup Flow
@@ -78,7 +78,7 @@ make restore-backup
 ```
 Scheduled Time
      ↓
-Run backup script (hourly/daily/monthly)
+Run backup script (hourly/daily/weekly)
      ↓
 Create database dump (backup.py)
      ↓
@@ -86,7 +86,7 @@ Encrypt backup (AES-256)
      ↓
 Clean up old local backups (by type)
      ↓
-Sync to Google Drive (sync-data.sh)
+Upload to Google Drive (upload-to-gdrive.sh)
      ↓
 Clean up old GDrive backups (cleanup-gdrive.py)
      ↓
@@ -95,9 +95,8 @@ Done
 
 ### Retention Logic
 
-- **Local**: Old backups deleted before creating new one (RAM mode)
-- **Google Drive**: Cleaned up after each sync
-- **Manual backups**: Explicitly excluded from all cleanup
+- **Local**: Old backups deleted based on per-type retention rules
+- **Google Drive**: Cleaned up after each upload; hourly permanently deleted, all others sent to GDrive trash (~30d recoverable)
 
 ## Configuration
 
@@ -141,7 +140,7 @@ GDRIVE_FOLDER_ID/
 │   ├── backups/
 │   │   ├── loomio-hourly-*.sql.enc
 │   │   ├── loomio-daily-*.sql.enc
-│   │   ├── loomio-monthly-*.sql.enc
+│   │   ├── loomio-weekly-*.sql.enc
 │   │   └── loomio-manual-*.sql.enc
 │   └── uploads/
 │       ├── storage/
