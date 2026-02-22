@@ -36,8 +36,8 @@ fi
 
 log "${BLUE}Syncing backups and uploads to Google Drive...${NC}"
 
-# Execute sync inside backup container (uses sync-data.sh which syncs both backups and uploads)
-if docker exec loomio-backup bash /app/sync-data.sh; then
+# Execute upload inside backup container (uploads both backups and user files to GDrive)
+if docker exec loomio-backup bash /app/upload-to-gdrive.sh; then
     # Write success status with timestamp
     docker exec loomio-backup bash -c 'date +%s > /backups/.last_sync_status'
     log "${GREEN}✓ Data synced to Google Drive successfully!${NC}"

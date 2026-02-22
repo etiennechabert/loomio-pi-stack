@@ -22,11 +22,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy backup scripts and make executable
 COPY backup.py cleanup-gdrive.py \
-     backup-and-sync.sh sync-data.sh \
+     backup-and-sync.sh upload-to-gdrive.sh \
      backup-hourly.sh backup-daily.sh backup-weekly.sh \
      entrypoint.sh ./
 RUN chmod +x backup.py cleanup-gdrive.py \
-             backup-and-sync.sh sync-data.sh \
+             backup-and-sync.sh upload-to-gdrive.sh \
              backup-hourly.sh backup-daily.sh backup-weekly.sh \
              entrypoint.sh && \
     mkdir -p /backups

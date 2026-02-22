@@ -15,7 +15,7 @@ python3 /app/backup.py --type daily
 # Sync to Google Drive if enabled
 if [ "${GDRIVE_ENABLED}" = "true" ]; then
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] Syncing to Google Drive..."
-    bash /app/sync-data.sh
+    bash /app/upload-to-gdrive.sh
 
     if [ $? -eq 0 ]; then
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] ✓ Daily backup synced to Google Drive"
