@@ -33,8 +33,8 @@ EOF
 echo "Syncing database backups to ${ENV_NAME}/backups/..."
 rclone copy "/backups" "gdrive:${ENV_NAME}/backups" \
     --config "$RCLONE_CONFIG_DIR/rclone.conf" \
-    --transfers 4 \
-    --checkers 8 \
+    --transfers 1 \
+    --checkers 2 \
     --fast-list \
     --drive-use-trash=true \
     --exclude '.DS_Store' \
