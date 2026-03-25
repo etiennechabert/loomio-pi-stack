@@ -49,8 +49,8 @@ for upload_dir in "/loomio/storage" "/loomio/public/system" "/loomio/public/file
         folder_name=$(basename "$upload_dir")
         rclone sync "$upload_dir" "gdrive:${ENV_NAME}/uploads/$folder_name" \
             --config "$RCLONE_CONFIG_DIR/rclone.conf" \
-            --transfers 4 \
-            --checkers 8 \
+            --transfers 1 \
+            --checkers 2 \
             --fast-list \
             --drive-use-trash=true \
             --exclude '.DS_Store' \
