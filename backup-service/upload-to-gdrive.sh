@@ -41,6 +41,7 @@ rclone copy "/backups" "gdrive:${ENV_NAME}/backups" \
     --transfers 1 \
     --checkers 2 \
     --fast-list \
+    --bwlimit 1M \
     --drive-use-trash=true \
     --exclude '.DS_Store' \
     --exclude 'Thumbs.db' \
@@ -57,6 +58,7 @@ for upload_dir in "/loomio/storage" "/loomio/public/system" "/loomio/public/file
             --transfers 1 \
             --checkers 2 \
             --fast-list \
+            --bwlimit 1M \
             --drive-use-trash=true \
             --exclude '.DS_Store' \
             --exclude 'Thumbs.db' \
