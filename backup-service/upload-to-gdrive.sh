@@ -15,7 +15,12 @@ fi
 
 # Get environment name
 ENV_NAME="${RAILS_ENV:-production}"
-echo "Syncing data to Google Drive (${ENV_NAME})..."
+
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+}
+
+log "Syncing data to Google Drive (${ENV_NAME})..."
 
 # Create rclone config
 RCLONE_CONFIG_DIR="/tmp/rclone-config-$$"
@@ -30,12 +35,13 @@ root_folder_id = ${GDRIVE_FOLDER_ID}
 EOF
 
 # Sync database backups to {environment}/backups/
-echo "Syncing database backups to ${ENV_NAME}/backups/..."
+log "Syncing database backups to ${ENV_NAME}/backups/..."
 rclone copy "/backups" "gdrive:${ENV_NAME}/backups" \
     --config "$RCLONE_CONFIG_DIR/rclone.conf" \
     --transfers 1 \
     --checkers 2 \
     --fast-list \
+    --bwlimit 1M \
     --drive-use-trash=true \
     --exclude '.DS_Store' \
     --exclude 'Thumbs.db' \
@@ -43,7 +49,7 @@ rclone copy "/backups" "gdrive:${ENV_NAME}/backups" \
     --exclude '.last_sync_status'
 
 # Sync uploads to {environment}/uploads/
-echo "Syncing user uploads to ${ENV_NAME}/uploads/..."
+log "Syncing user uploads to ${ENV_NAME}/uploads/..."
 for upload_dir in "/loomio/storage" "/loomio/public/system" "/loomio/public/files"; do
     if [ -d "$upload_dir" ]; then
         folder_name=$(basename "$upload_dir")
@@ -52,6 +58,7 @@ for upload_dir in "/loomio/storage" "/loomio/public/system" "/loomio/public/file
             --transfers 1 \
             --checkers 2 \
             --fast-list \
+            --bwlimit 1M \
             --drive-use-trash=true \
             --exclude '.DS_Store' \
             --exclude 'Thumbs.db' \
@@ -62,4 +69,4 @@ done
 # Cleanup
 rm -rf "$RCLONE_CONFIG_DIR"
 
-echo "✓ Data sync completed"
+log "✓ Data sync completed"

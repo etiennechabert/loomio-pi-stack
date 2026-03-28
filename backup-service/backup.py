@@ -299,8 +299,9 @@ def main():
     # Encrypt backup
     final_path = encrypt_backup(backup_path)
 
-    # Cleanup old backups
-    cleanup_old_backups(backup_type)
+    # Cleanup old local backups (all types, to avoid re-uploading expired files)
+    for bt in RETENTION_RULES:
+        cleanup_old_backups(bt)
 
     # Summary
     log("=" * 60)
