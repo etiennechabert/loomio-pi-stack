@@ -47,6 +47,7 @@
   <li><strong>Server- und Zugriffsdaten:</strong> IP-Adresse, Zeitpunkt des Zugriffs, User-Agent, angefragte URL — verarbeitet vom CDN/Proxy (Cloudflare) und in den Anwendungs-Logs auf dem Pi.</li>
   <li><strong>Cookies / Sitzungsdaten:</strong> technisch notwendige Sitzungs-Cookies zur Authentifizierung.</li>
   <li><strong>E-Mail-Verkehr:</strong> Benachrichtigungen und Einladungen werden per SMTP über Brevo versendet.</li>
+  <li><strong>KI-gestützte Inhaltsauswertung:</strong> auf einem privaten Rechner des Verantwortlichen (in Berlin, NVIDIA-GPU) wird mithilfe von Open-Weight-Modellen (über Ollama bzw. von Hugging Face bezogen) der in Loomio verfasste Diskussions- und Vorschlagsinhalt ausgewertet, um Tagesordnungen für unsere Treffen vorzubereiten und andere an die Gemeinschaft gerichtete Mitteilungen zu formulieren. Die Verarbeitung erfolgt ausschließlich lokal auf Hardware des Verantwortlichen; es findet keine Übermittlung an Dritte (insbesondere keine Übermittlung an externe KI-Dienste wie OpenAI, Anthropic o. ä.) statt.</li>
 </ul>
 
 <h2>4. Zwecke und Rechtsgrundlagen</h2>
@@ -56,6 +57,7 @@
   <tr><td>Server-Logs, Cloudflare-Edge</td><td>Sicherheit, Missbrauchsabwehr, Betrieb</td><td>Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse)</td></tr>
   <tr><td>Versand von E-Mails über Brevo</td><td>Vertragserfüllung (Benachrichtigungen)</td><td>Art. 6 Abs. 1 lit. b DSGVO</td></tr>
   <tr><td>Verschlüsselte Backups in Google Drive</td><td>Datensicherung / Wiederherstellung</td><td>Art. 6 Abs. 1 lit. a DSGVO (Einwilligung) i. V. m. Art. 49 Abs. 1 lit. a DSGVO</td></tr>
+  <tr><td>Lokale KI-Auswertung von Inhalten</td><td>Vorbereitung von Tagesordnungen und Mitteilungen an die Gemeinschaft</td><td>Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse)</td></tr>
 </table>
 
 <h2>5. Empfänger und Auftragsverarbeiter</h2>
@@ -86,6 +88,18 @@
   förmlicher Auftragsverarbeitungs­vertrag mit Google für diesen Dienst nicht abschließbar; die
   Übermittlung in die USA erfolgt deshalb gestützt auf Ihre ausdrückliche Einwilligung
   (Art. 49 Abs. 1 lit. a DSGVO), die Sie bei der Registrierung erteilen und jederzeit widerrufen können.
+</p>
+
+<h3>Lokale KI-Auswertung (keine Drittübermittlung)</h3>
+<p>
+  Inhalte aus Loomio werden auf einem privaten Rechner des Verantwortlichen in Berlin durch
+  Open-Weight-Sprachmodelle (über Ollama bzw. von Hugging Face bezogen, Ausführung auf einer
+  lokalen NVIDIA-GPU) verarbeitet, um Tagesordnungen für Treffen vorzubereiten und andere
+  Mitteilungen an die Gemeinschaft zu formulieren. Sämtliche Eingaben und Ausgaben verbleiben
+  auf Hardware des Verantwortlichen. Es werden keine Daten an externe KI-Dienste (z. B. OpenAI,
+  Anthropic, Google AI) übertragen. Eingaben werden nicht dauerhaft separat gespeichert; KI-generierte
+  Ergebnisse, die ich der Gemeinschaft zuleite (etwa Tagesordnungen), werden wie übrige Inhalte
+  in Loomio bzw. per E-Mail behandelt.
 </p>
 
 <h3>Keine weiteren Empfänger</h3>
@@ -169,6 +183,7 @@
   <li><strong>Server / access data:</strong> IP address, timestamp, user agent, requested URL — processed at the CDN/proxy layer (Cloudflare) and in application logs on the Pi.</li>
   <li><strong>Cookies / session data:</strong> strictly necessary session cookies for authentication.</li>
   <li><strong>Email traffic:</strong> notifications and invitations sent via SMTP through Brevo.</li>
+  <li><strong>AI-assisted content analysis:</strong> on a personal computer of the controller (in Berlin, with an NVIDIA GPU), open-weight language models (run via Ollama and obtained from Hugging Face) are used to analyse content written in Loomio in order to prepare meeting agendas and to draft other communications addressed to the community. All processing happens locally on the controller's hardware. No data is transferred to third parties — in particular no data is sent to external AI services such as OpenAI, Anthropic or Google AI.</li>
 </ul>
 
 <h2>4. Purposes and legal bases</h2>
@@ -178,6 +193,7 @@
   <tr><td>Server logs, Cloudflare edge</td><td>Security, abuse prevention, operations</td><td>Art. 6(1)(f) GDPR (legitimate interest)</td></tr>
   <tr><td>Sending emails via Brevo</td><td>Performance of the service</td><td>Art. 6(1)(b) GDPR</td></tr>
   <tr><td>Encrypted backups to Google Drive</td><td>Data backup / recovery</td><td>Art. 6(1)(a) GDPR (consent) + Art. 49(1)(a) GDPR</td></tr>
+  <tr><td>Local AI analysis of content</td><td>Preparing meeting agendas and community communications</td><td>Art. 6(1)(f) GDPR (legitimate interest)</td></tr>
 </table>
 
 <h2>5. Recipients and processors</h2>
@@ -206,6 +222,17 @@
   no formal Data Processing Agreement with Google is available for this service; transfer to the
   United States is therefore based on your explicit consent (Art. 49(1)(a) GDPR), which you grant on
   registration and may withdraw at any time.
+</p>
+
+<h3>Local AI analysis (no third-party transfer)</h3>
+<p>
+  Content from Loomio is analysed on a personal computer of the controller in Berlin using
+  open-weight language models (run via Ollama, obtained from Hugging Face, executed on a local
+  NVIDIA GPU) in order to prepare meeting agendas and to draft other communications addressed to
+  the community. All inputs and outputs stay on the controller's hardware. No data is sent to
+  external AI services (e.g. OpenAI, Anthropic, Google AI). Inputs are not retained as a separate
+  store; AI-generated outputs that I forward to the community (such as agendas) are treated like
+  other Loomio content or email.
 </p>
 
 <h3>No other recipients</h3>
