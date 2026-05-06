@@ -1,7 +1,7 @@
 # Loomio Pi Stack - Production RAM Mode (Raspberry Pi)
 SHELL := /bin/bash
 
-.PHONY: help start stop restart reload-env status logs backup restore sync-gdrive pull-docker-images update-images update migrate-db create-admin health rails-console db-console init-env init-gdrive destroy backup-info sidekiq-status sidekiq-retry deploy-email-worker check-updates setup-update-checker install-hourly-tasks hourly-tasks-status run-hourly-tasks install-error-report error-report-status send-error-report enable-auto-setup tunnel-start tunnel-stop tunnel-restart tunnel-status tunnel-update install-systemd
+.PHONY: help start stop restart reload-env status logs backup restore sync-gdrive pull-docker-images update-images update migrate-db create-admin health rails-console db-console init-env init-gdrive destroy backup-info sidekiq-status sidekiq-retry deploy-email-worker deploy-legal-worker check-updates setup-update-checker install-hourly-tasks hourly-tasks-status run-hourly-tasks install-error-report error-report-status send-error-report enable-auto-setup tunnel-start tunnel-stop tunnel-restart tunnel-status tunnel-update install-systemd
 
 # Default target
 .DEFAULT_GOAL := help
@@ -330,6 +330,11 @@ init-gdrive: ## Setup Google Drive OAuth (one-time)
 
 deploy-email-worker: ## Deploy Cloudflare Email Worker for incoming email
 	@./scripts/deploy-email-worker.sh
+
+##@ Legal Pages Worker (Impressum / Datenschutz)
+
+deploy-legal-worker: ## Deploy Cloudflare Worker that serves /impressum and /datenschutz and injects a footer link
+	@./scripts/deploy-legal-worker.sh
 
 ##@ Update Management
 

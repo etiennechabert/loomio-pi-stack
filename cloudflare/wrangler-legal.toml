@@ -1,0 +1,11 @@
+name = "loomio-legal-worker"
+main = "legal-worker.js"
+compatibility_date = "2025-01-01"
+
+[assets]
+directory = "./legal"
+binding = "ASSETS"
+
+[[routes]]
+pattern = "loomio.lyckbo.de/*"
+zone_name = "lyckbo.de"
