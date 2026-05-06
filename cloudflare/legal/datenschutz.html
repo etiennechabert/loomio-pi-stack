@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Datenschutzerklärung — loomio.lyckbo.de</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; max-width: 760px; margin: 3rem auto; padding: 0 1.25rem; line-height: 1.55; color: #222; }
+    h1 { font-size: 1.6rem; margin-top: 0; }
+    h2 { font-size: 1.15rem; margin-top: 2rem; }
+    h3 { font-size: 1rem; margin-top: 1.25rem; }
+    hr { border: 0; border-top: 1px solid #ddd; margin: 3rem 0; }
+    a { color: #0a58ca; }
+    .lang { color: #888; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    table { border-collapse: collapse; margin: 0.5rem 0 1rem; width: 100%; font-size: 0.95rem; }
+    th, td { border: 1px solid #ddd; padding: 0.4rem 0.6rem; text-align: left; vertical-align: top; }
+    th { background: #f6f6f6; font-weight: 600; }
+    footer { margin-top: 3rem; color: #888; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+
+<p class="lang">Deutsch</p>
+<h1>Datenschutzerklärung</h1>
+
+<h2>1. Verantwortlicher</h2>
+<p>
+  Verantwortlich im Sinne der DSGVO ist:<br>
+  Etienne Chabert<br>
+  Friedrichstr. 155, 10117 Berlin, Deutschland<br>
+  E-Mail: <a href="mailto:etienne.chabert.de@gmail.com">etienne.chabert.de@gmail.com</a>
+</p>
+
+<h2>2. Allgemeines</h2>
+<p>
+  loomio.lyckbo.de ist eine private Instanz der Open-Source-Software
+  <a href="https://github.com/loomio/loomio">Loomio</a>, die auf einem Raspberry Pi in meiner
+  Wohnung in Berlin betrieben wird. Der Dienst richtet sich ausschließlich an Mitglieder einer
+  geschlossenen Gemeinschaft (Einladung erforderlich) und verfolgt keinen kommerziellen Zweck.
+</p>
+
+<h2>3. Welche Daten werden verarbeitet?</h2>
+<ul>
+  <li><strong>Konto- und Profildaten:</strong> Name, E-Mail-Adresse, Passwort (gehasht), Profileinstellungen.</li>
+  <li><strong>Inhaltsdaten:</strong> von Ihnen verfasste Diskussionen, Vorschläge, Stimmen, Kommentare, Datei-Uploads.</li>
+  <li><strong>Server- und Zugriffsdaten:</strong> IP-Adresse, Zeitpunkt des Zugriffs, User-Agent, angefragte URL — verarbeitet vom CDN/Proxy (Cloudflare) und in den Anwendungs-Logs auf dem Pi.</li>
+  <li><strong>Cookies / Sitzungsdaten:</strong> technisch notwendige Sitzungs-Cookies zur Authentifizierung.</li>
+  <li><strong>E-Mail-Verkehr:</strong> Benachrichtigungen und Einladungen werden per SMTP über Brevo versendet.</li>
+</ul>
+
+<h2>4. Zwecke und Rechtsgrundlagen</h2>
+<table>
+  <tr><th>Verarbeitung</th><th>Zweck</th><th>Rechtsgrundlage</th></tr>
+  <tr><td>Konto, Inhalte, Sitzungen</td><td>Bereitstellung des Dienstes</td><td>Art. 6 Abs. 1 lit. b DSGVO (Vertrag)</td></tr>
+  <tr><td>Server-Logs, Cloudflare-Edge</td><td>Sicherheit, Missbrauchsabwehr, Betrieb</td><td>Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse)</td></tr>
+  <tr><td>Versand von E-Mails über Brevo</td><td>Vertragserfüllung (Benachrichtigungen)</td><td>Art. 6 Abs. 1 lit. b DSGVO</td></tr>
+  <tr><td>Verschlüsselte Backups in Google Drive</td><td>Datensicherung / Wiederherstellung</td><td>Art. 6 Abs. 1 lit. a DSGVO (Einwilligung) i. V. m. Art. 49 Abs. 1 lit. a DSGVO</td></tr>
+</table>
+
+<h2>5. Empfänger und Auftragsverarbeiter</h2>
+
+<h3>Cloudflare</h3>
+<p>
+  Eingehender Datenverkehr wird über einen Cloudflare-Tunnel zum Pi geleitet. Cloudflare verarbeitet
+  hierbei IP-Adressen und Verbindungs-Metadaten zur Auslieferung und zur Abwehr von Angriffen.
+  Anbieter: Cloudflare, Inc. (USA) sowie Cloudflare Germany GmbH. Es besteht ein Datenverarbeitungs­vertrag
+  (DPA) inkl. EU-Standardvertragsklauseln.
+</p>
+
+<h3>Brevo (Sendinblue)</h3>
+<p>
+  Ausgehende Transaktions-E-Mails (Einladungen, Benachrichtigungen) werden über Brevo SAS, 106 boulevard
+  Haussmann, 75008 Paris, Frankreich versendet. Brevo verarbeitet hierbei Empfänger-Adressen, Betreff
+  und Inhalt der Nachricht. Es besteht ein Auftragsverarbeitungs­vertrag. Die Verarbeitung erfolgt
+  innerhalb der EU.
+</p>
+
+<h3>Google Drive (private Sicherung)</h3>
+<p>
+  Verschlüsselte Backups der Datenbank und der hochgeladenen Dateien werden auf einem privaten
+  Google-Drive-Konto abgelegt. Die Verschlüsselung erfolgt vor dem Upload mit einem Schlüssel,
+  der ausschließlich dem Verantwortlichen vorliegt; Google selbst kann die Inhalte nicht entschlüsseln.
+  Google verarbeitet jedoch Datei-Metadaten (Dateiname, Größe, Zeitpunkt) sowie die Quell-IP des
+  Uploads. Anbieter: Google LLC, USA. Da es sich um ein privates Google-Konto handelt, ist ein
+  förmlicher Auftragsverarbeitungs­vertrag mit Google für diesen Dienst nicht abschließbar; die
+  Übermittlung in die USA erfolgt deshalb gestützt auf Ihre ausdrückliche Einwilligung
+  (Art. 49 Abs. 1 lit. a DSGVO), die Sie bei der Registrierung erteilen und jederzeit widerrufen können.
+</p>
+
+<h3>Keine weiteren Empfänger</h3>
+<p>
+  Es findet kein Tracking, keine Werbung, keine Analyse durch Dritte statt. Monitoring (Netdata)
+  läuft ausschließlich lokal auf dem Pi und überträgt keine Daten an Dritte.
+</p>
+
+<h2>6. Drittlandtransfer</h2>
+<p>
+  Die oben genannten Übermittlungen an Cloudflare und Google können einen Transfer in die USA
+  umfassen. Für Cloudflare bestehen EU-Standardvertragsklauseln. Für die verschlüsselten Google-Drive-Backups
+  stützt sich der Transfer auf Ihre Einwilligung. Sie können dieser Einwilligung jederzeit
+  widersprechen — in diesem Fall werden Ihre Daten von künftigen Backups ausgeschlossen bzw. Ihr Konto
+  gelöscht.
+</p>
+
+<h2>7. Speicherdauer</h2>
+<ul>
+  <li>Konto- und Inhaltsdaten: bis zur Löschung des Kontos durch Sie oder durch den Verantwortlichen.</li>
+  <li>Server-Logs auf dem Pi: maximal 30 Tage.</li>
+  <li>Backups: rollierend, höchstens 30 Tage; verschlüsselt.</li>
+  <li>Cloudflare-Edge-Logs: gemäß Cloudflare-Richtlinien (typischerweise wenige Tage).</li>
+</ul>
+
+<h2>8. Ihre Rechte</h2>
+<p>Sie haben das Recht auf:</p>
+<ul>
+  <li>Auskunft (Art. 15 DSGVO)</li>
+  <li>Berichtigung (Art. 16 DSGVO)</li>
+  <li>Löschung (Art. 17 DSGVO)</li>
+  <li>Einschränkung der Verarbeitung (Art. 18 DSGVO)</li>
+  <li>Datenübertragbarkeit (Art. 20 DSGVO)</li>
+  <li>Widerspruch (Art. 21 DSGVO)</li>
+  <li>Widerruf erteilter Einwilligungen mit Wirkung für die Zukunft (Art. 7 Abs. 3 DSGVO)</li>
+</ul>
+<p>
+  Anfragen richten Sie bitte formlos an
+  <a href="mailto:etienne.chabert.de@gmail.com">etienne.chabert.de@gmail.com</a>.
+</p>
+
+<h2>9. Beschwerderecht</h2>
+<p>
+  Sie haben das Recht, sich bei einer Datenschutz-Aufsichtsbehörde zu beschweren. Zuständig ist:<br>
+  <strong>Berliner Beauftragte für Datenschutz und Informationsfreiheit</strong><br>
+  Friedrichstr. 219, 10969 Berlin<br>
+  <a href="https://www.datenschutz-berlin.de">www.datenschutz-berlin.de</a>
+</p>
+
+<h2>10. Änderungen</h2>
+<p>
+  Diese Datenschutzerklärung kann angepasst werden, um neue rechtliche Anforderungen oder Änderungen
+  am Dienst zu berücksichtigen. Die jeweils aktuelle Fassung ist unter
+  <a href="/datenschutz">/datenschutz</a> abrufbar.
+</p>
+
+<hr>
+
+<p class="lang">English</p>
+<h1>Privacy Policy</h1>
+
+<h2>1. Controller</h2>
+<p>
+  Controller within the meaning of the GDPR:<br>
+  Etienne Chabert<br>
+  Friedrichstr. 155, 10117 Berlin, Germany<br>
+  Email: <a href="mailto:etienne.chabert.de@gmail.com">etienne.chabert.de@gmail.com</a>
+</p>
+
+<h2>2. About this service</h2>
+<p>
+  loomio.lyckbo.de is a private instance of the open-source software
+  <a href="https://github.com/loomio/loomio">Loomio</a>, hosted on a Raspberry Pi at my home in Berlin.
+  It is offered to a closed, invitation-only community for non-commercial purposes.
+</p>
+
+<h2>3. Data we process</h2>
+<ul>
+  <li><strong>Account / profile data:</strong> name, email, password (hashed), profile settings.</li>
+  <li><strong>Content data:</strong> discussions, proposals, votes, comments and uploaded files you create.</li>
+  <li><strong>Server / access data:</strong> IP address, timestamp, user agent, requested URL — processed at the CDN/proxy layer (Cloudflare) and in application logs on the Pi.</li>
+  <li><strong>Cookies / session data:</strong> strictly necessary session cookies for authentication.</li>
+  <li><strong>Email traffic:</strong> notifications and invitations sent via SMTP through Brevo.</li>
+</ul>
+
+<h2>4. Purposes and legal bases</h2>
+<table>
+  <tr><th>Processing</th><th>Purpose</th><th>Legal basis</th></tr>
+  <tr><td>Account, content, sessions</td><td>Providing the service</td><td>Art. 6(1)(b) GDPR (contract)</td></tr>
+  <tr><td>Server logs, Cloudflare edge</td><td>Security, abuse prevention, operations</td><td>Art. 6(1)(f) GDPR (legitimate interest)</td></tr>
+  <tr><td>Sending emails via Brevo</td><td>Performance of the service</td><td>Art. 6(1)(b) GDPR</td></tr>
+  <tr><td>Encrypted backups to Google Drive</td><td>Data backup / recovery</td><td>Art. 6(1)(a) GDPR (consent) + Art. 49(1)(a) GDPR</td></tr>
+</table>
+
+<h2>5. Recipients and processors</h2>
+
+<h3>Cloudflare</h3>
+<p>
+  Inbound traffic is routed to the Pi through a Cloudflare Tunnel. Cloudflare processes IP addresses
+  and connection metadata for delivery and abuse mitigation. Provider: Cloudflare, Inc. (USA) and
+  Cloudflare Germany GmbH. A Data Processing Agreement (DPA) including EU Standard Contractual
+  Clauses is in place.
+</p>
+
+<h3>Brevo (Sendinblue)</h3>
+<p>
+  Outgoing transactional emails (invitations, notifications) are sent via Brevo SAS, 106 boulevard
+  Haussmann, 75008 Paris, France. Brevo processes recipient addresses, subject and message content.
+  A processor agreement is in place; processing takes place within the EU.
+</p>
+
+<h3>Google Drive (private backup)</h3>
+<p>
+  Encrypted backups of the database and uploaded files are stored on a personal Google Drive account.
+  Encryption is performed before upload using a key held only by the controller; Google itself cannot
+  decrypt the contents. Google does, however, process file metadata (filename, size, timestamp) and
+  the source IP of the upload. Provider: Google LLC, USA. Because this is a personal Google account,
+  no formal Data Processing Agreement with Google is available for this service; transfer to the
+  United States is therefore based on your explicit consent (Art. 49(1)(a) GDPR), which you grant on
+  registration and may withdraw at any time.
+</p>
+
+<h3>No other recipients</h3>
+<p>
+  No third-party tracking, advertising or analytics. Monitoring (Netdata) runs locally on the Pi
+  only and does not transmit data to third parties.
+</p>
+
+<h2>6. International transfers</h2>
+<p>
+  The transfers above to Cloudflare and Google may involve a transfer to the United States.
+  EU Standard Contractual Clauses are in place for Cloudflare. The transfer of encrypted Google
+  Drive backups relies on your consent, which you may withdraw at any time — in which case your
+  data is excluded from future backups or your account is deleted.
+</p>
+
+<h2>7. Retention</h2>
+<ul>
+  <li>Account and content data: until you or the controller delete the account.</li>
+  <li>Server logs on the Pi: at most 30 days.</li>
+  <li>Backups: rolling, at most 30 days, encrypted.</li>
+  <li>Cloudflare edge logs: per Cloudflare's policy (typically a few days).</li>
+</ul>
+
+<h2>8. Your rights</h2>
+<p>You have the right to:</p>
+<ul>
+  <li>access (Art. 15 GDPR)</li>
+  <li>rectification (Art. 16 GDPR)</li>
+  <li>erasure (Art. 17 GDPR)</li>
+  <li>restriction of processing (Art. 18 GDPR)</li>
+  <li>data portability (Art. 20 GDPR)</li>
+  <li>object (Art. 21 GDPR)</li>
+  <li>withdraw consent at any time, with effect for the future (Art. 7(3) GDPR)</li>
+</ul>
+<p>
+  Send any request informally to
+  <a href="mailto:etienne.chabert.de@gmail.com">etienne.chabert.de@gmail.com</a>.
+</p>
+
+<h2>9. Right to lodge a complaint</h2>
+<p>
+  You may lodge a complaint with a data protection supervisory authority. The competent authority is:<br>
+  <strong>Berliner Beauftragte für Datenschutz und Informationsfreiheit</strong><br>
+  Friedrichstr. 219, 10969 Berlin, Germany<br>
+  <a href="https://www.datenschutz-berlin.de">www.datenschutz-berlin.de</a>
+</p>
+
+<h2>10. Changes</h2>
+<p>
+  This privacy policy may be updated to reflect new legal requirements or changes to the service.
+  The current version is always available at <a href="/datenschutz">/datenschutz</a>.
+</p>
+
+<footer>
+  <p>Stand / Last updated: 2026-05-06 · <a href="/impressum">Impressum / Imprint</a></p>
+</footer>
+
+</body>
+</html>
