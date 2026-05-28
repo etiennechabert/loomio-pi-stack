@@ -41,6 +41,10 @@ RETENTION_RULES = {
     'manual': 30,    # 30 days
 }
 
+# A real Loomio dump is tens of MB. Anything under this is schema-only / empty DB —
+# reject it so it can't poison the auto-restore on next boot.
+MIN_BACKUP_SIZE_BYTES = 1 * 1024 * 1024
+
 
 def log(message):
     """Print timestamped log message"""
@@ -147,7 +151,15 @@ def create_database_backup(backup_type='hourly', reason=None):
 
         # Check if file was created and has content
         if backup_path.exists() and backup_path.stat().st_size > 0:
-            size_mb = backup_path.stat().st_size / (1024 * 1024)
+            size_bytes = backup_path.stat().st_size
+            size_mb = size_bytes / (1024 * 1024)
+
+            if size_bytes < MIN_BACKUP_SIZE_BYTES:
+                min_mb = MIN_BACKUP_SIZE_BYTES / (1024 * 1024)
+                log(f"✗ Backup suspiciously small ({size_mb:.2f} MB < {min_mb:.0f} MB) — likely schema-only dump of an empty database. Discarding.")
+                backup_path.unlink()
+                return None
+
             log(f"✓ Database backup created: {backup_filename} ({size_mb:.2f} MB)")
             return backup_path
         else:
