@@ -114,6 +114,42 @@ def get_backup_filename(backup_type, reason=None):
         return f"loomio_backup_{now.strftime('%Y%m%d_%H%M%S')}"
 
 
+def count_public_tables():
+    """Count the tables in the database's public schema
+
+    Returns:
+        The number of tables, or None if it could not be determined
+    """
+    env = os.environ.copy()
+    env['PGPASSWORD'] = DB_PASSWORD
+
+    cmd = [
+        'psql',
+        '-h', DB_HOST,
+        '-p', DB_PORT,
+        '-U', DB_USER,
+        '-d', DB_NAME,
+        '-t', '-A',  # Tuples only, unaligned: prints just the number
+        '-c', "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';"
+    ]
+
+    try:
+        result = subprocess.run(cmd, env=env, capture_output=True, text=True, check=True, timeout=60)
+    except subprocess.CalledProcessError as e:
+        log(f"⚠ Table count query failed: {e.stderr.strip()}")
+        return None
+    except (subprocess.TimeoutExpired, OSError) as e:
+        log(f"⚠ Table count query failed: {e}")
+        return None
+
+    output = result.stdout.strip()
+    if not (output.isascii() and output.isdigit()):
+        log(f"⚠ Table count query returned an unexpected result: {output!r}")
+        return None
+
+    return int(output)
+
+
 def create_database_backup(backup_type='hourly', reason=None):
     """Create PostgreSQL database dump
 
@@ -301,6 +337,18 @@ def main():
     if not DB_PASSWORD:
         log("✗ ERROR: DB_PASSWORD not set")
         sys.exit(1)
+
+    # Never back up a database with no tables: the newest backup is what the
+    # next start restores, so a dump of an empty database would replace real data.
+    table_count = count_public_tables()
+    if table_count == 0:
+        log("✗ ERROR: Database has no tables in the public schema - refusing to back up an empty database")
+        log("✗ Backup process failed")
+        sys.exit(1)
+    if table_count is None:
+        # Only a positive "0 tables" answer blocks the backup. If the check
+        # itself breaks, carry on: pg_dump and the minimum-size check still apply.
+        log("⚠ Could not check whether the database is empty - continuing with the backup")
 
     # Create database backup
     backup_path = create_database_backup(backup_type, reason)
