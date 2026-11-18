@@ -38,7 +38,68 @@ echo ""
 
 # Auto-restore on boot
 echo "Checking if restore is needed..."
-sleep 5  # Wait for database to be fully ready
+
+# The container healthcheck (which the app waits for) tests for RESTORE_MARKER.
+# /tmp survives a restart of this container, so remove the marker left by a
+# previous run: it must only exist once THIS run has finished its restore step.
+RESTORE_MARKER="/tmp/.restore-complete"
+# Present from the moment a restore starts writing to the database until it has
+# been verified. Like the marker above it survives a restart of this container,
+# so a half-finished restore is never mistaken for a populated database.
+RESTORE_IN_PROGRESS="/tmp/.restore-in-progress"
+# Decrypted dump used during the restore (never leave one behind in /backups)
+DECRYPTED="/backups/restore_boot.sql"
+rm -f "$RESTORE_MARKER" "$DECRYPTED"
+
+# How long to wait for PostgreSQL before giving up (seconds)
+DB_WAIT_TIMEOUT=${DB_WAIT_TIMEOUT:-120}
+
+# Run psql against the Loomio database; extra arguments are passed through
+db_psql() {
+    PGPASSWORD="${DB_PASSWORD}" PGCONNECT_TIMEOUT=10 \
+        psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" "$@"
+}
+
+# Wait until PostgreSQL accepts connections and answers a query.
+# Compose `depends_on` only orders `docker compose up`. When Docker restarts all
+# containers at once (daemon restart, power loss) the database can still be
+# initialising when this script starts, so a fixed sleep is not enough.
+wait_for_db() {
+    local deadline=$((SECONDS + DB_WAIT_TIMEOUT))
+    local last_error=""
+
+    echo "Waiting for database at ${DB_HOST}:${DB_PORT} (timeout: ${DB_WAIT_TIMEOUT}s)..."
+    while true; do
+        if last_error=$(db_psql -t -A -c "SELECT 1;" 2>&1 > /dev/null); then
+            echo "✓ Database is accepting connections"
+            return 0
+        fi
+        if [ "$SECONDS" -ge "$deadline" ]; then
+            echo "✗ ERROR: Database did not accept connections within ${DB_WAIT_TIMEOUT}s"
+            echo "  Last error: ${last_error:-unknown}"
+            return 1
+        fi
+        sleep 2
+    done
+}
+
+# Print the number of tables in the public schema.
+# Fails (non-zero, nothing printed) if the query fails or does not return a
+# plain number, so that "could not tell" is never read as "0" or as "populated".
+count_public_tables() {
+    local count
+    count=$(db_psql -t -A -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';") || return 1
+    count=$(printf '%s' "$count" | tr -d '[:space:]')
+    case "$count" in
+        '' | *[!0-9]*) return 1 ;;
+    esac
+    echo "$count"
+}
+
+if ! wait_for_db; then
+    echo "✗ Cannot check or restore the database - exiting without marking the restore as complete"
+    exit 1
+fi
 
 # In RAM mode, ALWAYS restore because tmpfs is wiped on boot
 # In disk mode, only restore if database is empty
@@ -48,11 +109,24 @@ if [ "$IS_RAM_MODE" = "true" ]; then
     echo "${RAILS_ENV} mode (RAM): Always restoring from backup..."
     SHOULD_RESTORE=true
 else
-    # Development: check if database is empty
-    TABLE_COUNT=$(PGPASSWORD=${DB_PASSWORD} psql -h ${DB_HOST} -U ${DB_USER} -d ${DB_NAME} -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' ' || echo "0")
-    if [ "$TABLE_COUNT" -eq "0" ]; then
+    # IS_RAM_MODE not set for this container (the case with the stock
+    # docker-compose.yml): restore only if the database is empty
+    if ! TABLE_COUNT=$(count_public_tables); then
+        echo "✗ ERROR: Could not determine whether the database is empty (query failed or returned no number)"
+        echo "  Not treating the database as populated - exiting without marking the restore as complete"
+        exit 1
+    fi
+
+    if [ "$TABLE_COUNT" -eq 0 ]; then
         echo "Database is empty - attempting restore..."
         SHOULD_RESTORE=true
+        # Nothing is left of any earlier, unfinished restore
+        rm -f "$RESTORE_IN_PROGRESS"
+    elif [ -f "$RESTORE_IN_PROGRESS" ]; then
+        echo "✗ ERROR: An earlier restore in this container did not finish, and the database is not empty (${TABLE_COUNT} tables)"
+        echo "  The database may be only partly restored - not treating it as populated"
+        echo "  To retry from a clean state see docs/RAM_MODE.md (\"Database restoration fails on startup\")"
+        exit 1
     else
         echo "Database already populated (${TABLE_COUNT} tables) - skipping restore"
     fi
@@ -94,8 +168,7 @@ EOF
         echo "Restoring from: $(basename ${LATEST_BACKUP})"
 
         # Decrypt
-        DECRYPTED="/backups/restore_boot.sql"
-        python3 -c "
+        if ! python3 -c "
 from cryptography.fernet import Fernet
 import base64, hashlib
 
@@ -106,11 +179,35 @@ fernet = Fernet(derive_fernet_key('${BACKUP_ENCRYPTION_KEY}'))
 with open('${LATEST_BACKUP}', 'rb') as f:
     with open('${DECRYPTED}', 'wb') as out:
         out.write(fernet.decrypt(f.read()))
-"
+"; then
+            rm -f "$DECRYPTED"
+            echo "✗ Restore failed: could not decrypt $(basename ${LATEST_BACKUP}) (wrong BACKUP_ENCRYPTION_KEY or damaged file)"
+            echo "  Exiting without marking the restore as complete"
+            exit 1
+        fi
 
         # Restore
-        PGPASSWORD=${DB_PASSWORD} psql -h ${DB_HOST} -U ${DB_USER} -d ${DB_NAME} < ${DECRYPTED} > /dev/null 2>&1 && echo "✓ Database restored successfully!" || echo "✗ Restore failed"
-        rm -f ${DECRYPTED}
+        # psql exits 0 even when individual statements fail, so a zero exit code
+        # is not enough: also check that the database has tables afterwards.
+        touch "$RESTORE_IN_PROGRESS"
+        RESTORE_ERROR=""
+        if ! db_psql < "$DECRYPTED" > /dev/null 2>&1; then
+            RESTORE_ERROR="psql reported an error (database unreachable, or connection lost during the restore)"
+        elif ! RESTORED_TABLES=$(count_public_tables); then
+            RESTORE_ERROR="could not check the database after the restore"
+        elif [ "$RESTORED_TABLES" -eq 0 ]; then
+            RESTORE_ERROR="the database still has no tables after the restore"
+        fi
+        rm -f "$DECRYPTED"
+
+        if [ -n "$RESTORE_ERROR" ]; then
+            echo "✗ Restore failed: ${RESTORE_ERROR}"
+            echo "  Exiting without marking the restore as complete, so this container is not reported healthy"
+            exit 1
+        fi
+
+        rm -f "$RESTORE_IN_PROGRESS"
+        echo "✓ Database restored successfully! (${RESTORED_TABLES} tables)"
     else
         echo "No backup available - database will remain empty"
     fi
@@ -176,7 +273,7 @@ EOF
 fi
 
 # Mark restore as complete (for healthcheck)
-touch /tmp/.restore-complete
+touch "$RESTORE_MARKER"
 echo "✓ Restore process complete"
 
 # Set up cron jobs for multi-tier backups
