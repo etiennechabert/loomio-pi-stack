@@ -80,6 +80,8 @@ Scheduled Time
      ↓
 Run backup script (hourly/daily/weekly)
      ↓
+Refuse to continue if the database has no tables or no users (backup.py)
+     ↓
 Create database dump (backup.py)
      ↓
 Encrypt backup (AES-256)
@@ -115,10 +117,21 @@ GDRIVE_FOLDER_ID=your_folder_id
 
 ## Auto-Restore on Boot
 
-In production (RAM mode), the service automatically:
-1. Restores latest database backup
-2. Syncs uploads from Google Drive
-3. Marks restore complete (for healthcheck)
+Every time the container starts, `entrypoint.sh`:
+1. Waits up to 120 seconds for PostgreSQL to accept connections
+2. Restores the latest database backup if the database is empty (no tables in the `public` schema)
+3. Syncs uploads from Google Drive
+4. Marks restore complete by creating `/tmp/.restore-complete` (the container healthcheck, which the app waits for on `docker compose up`)
+
+The restore step fails closed. The container exits with an error, is restarted by Docker to try again, and is **not** reported healthy when:
+- PostgreSQL does not accept connections within the timeout
+- it cannot tell whether the database is empty (the table count query fails or returns no number)
+- the backup cannot be decrypted, the restore fails, or the database still has no tables afterwards
+- an earlier restore did not finish and the database is not empty (recorded in `/backups/.restore-in-progress`, which survives the container being recreated)
+
+It never assumes the database is already populated. Read the reason with `make logs SERVICE=backup`, and see [RAM_MODE.md](../docs/RAM_MODE.md#database-restoration-fails-on-startup) for how to retry.
+
+If there is no backup at all (fresh install), the database is left empty and the container still becomes healthy.
 
 ## Monitoring
 
@@ -158,6 +171,13 @@ docker exec loomio-backup crontab -l
 # Check logs
 make logs SERVICE=backup
 ```
+
+### Backup refuses to run ("Database has no tables" / "Database has tables but no users")
+`backup.py` exits with an error instead of writing a dump when the `public` schema has no tables, or when it has tables but the `users` table has no users other than bots. The second case is what the app leaves behind when it creates an empty schema after a restore was skipped. A dump of an empty database would become the newest backup and be restored on the next start. Find out why the database is empty (`make logs SERVICE=backup`, `make logs SERVICE=db`) before creating any backup. Dumps smaller than 1 MB are discarded for the same reason.
+
+On a fresh install, backups are refused until the first user (usually the admin, `make create-admin`) exists.
+
+If either count cannot be read (for example the query fails), `backup.py` logs a warning and backs up anyway, so a problem in these checks cannot stop backups on its own.
 
 ### Google Drive sync failing
 ```bash

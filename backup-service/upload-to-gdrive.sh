@@ -46,7 +46,9 @@ rclone copy "/backups" "gdrive:${ENV_NAME}/backups" \
     --exclude '.DS_Store' \
     --exclude 'Thumbs.db' \
     --exclude '*.tmp' \
-    --exclude '.last_sync_status'
+    --exclude '.last_sync_status' \
+    --exclude '.restore-in-progress' \
+    --exclude 'restore_boot.sql'
 
 # Sync uploads to {environment}/uploads/
 log "Syncing user uploads to ${ENV_NAME}/uploads/..."

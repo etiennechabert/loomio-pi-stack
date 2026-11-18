@@ -56,12 +56,16 @@ Development (`RAILS_ENV=development`) uses normal disk-based storage.
 
 ### Startup Process
 
-1. Docker starts with `tmpfs` mounts for `/var/lib/postgresql/data` and Redis `/data`
-2. `init-ram.sh` script runs automatically
-3. Checks for latest backup in `./data/db_backup/` (local first!)
+1. Docker starts with `tmpfs` mounts for `/var/lib/postgresql/data` and Redis `/data`, so the database starts empty
+2. The `backup` container (`backup-service/entrypoint.sh`) waits up to 120 seconds for PostgreSQL to accept connections
+3. If the database is empty, it looks for the latest backup in `./data/production/backups/` (local first!)
 4. If no local backup found, downloads from Google Drive (if configured)
 5. Decrypts and restores database to RAM
-6. Loomio starts with fully restored data
+6. The `backup` container reports healthy, and `docker compose up` starts Loomio with fully restored data
+
+The restore fails closed. If PostgreSQL never becomes ready, if the `backup` container cannot tell whether the database is empty, or if the restore itself fails, the container exits with an error and is not reported healthy. It never assumes the database is already populated. See [Database restoration fails on startup](#database-restoration-fails-on-startup).
+
+**Limitation:** the app only waits for the `backup` container when the stack is started with `docker compose up` (which is what `loomio.service` and `make start` do). When Docker itself restarts the containers (Docker daemon restart, power loss), they all start at once and the app does not wait for the restore.
 
 ### Runtime
 
@@ -186,21 +190,49 @@ make list-backups
 
 ### Database restoration fails on startup
 
+If the restore cannot be completed, the `backup` container exits with an error instead of reporting healthy, and Docker restarts it to try again. `docker compose up` does not start the app while this lasts.
+
 **Check these:**
 
 ```bash
-# 1. Verify backup exists
-ls -lh ./data/db_backup/
+# 1. Read why the restore stopped
+docker compose logs backup
 
-# 2. Check backup encryption key
-grep BACKUP_ENCRYPTION_KEY .env
+# 2. Check the container state (healthy / unhealthy / restarting)
+docker compose ps backup
 
-# 3. View startup logs
+# 3. Verify a backup exists and is not tiny
+ls -lh ./data/production/backups/
+
+# 4. Check the backup encryption key is set (prints 1, without showing the key)
+grep -c '^BACKUP_ENCRYPTION_KEY=.' .env
+
+# 5. View database startup logs
 docker compose logs db
-
-# 4. Manually test restore
-./scripts/init-ram.sh
 ```
+
+**What the log messages mean:**
+
+| Message in `docker compose logs backup` | Meaning |
+|---|---|
+| `Database did not accept connections within 120s` | PostgreSQL did not start in time. Check `docker compose logs db`. |
+| `Could not determine whether the database is empty` | The table count query failed. The restore was neither run nor skipped. |
+| `Restore failed: could not decrypt ...` | Wrong `BACKUP_ENCRYPTION_KEY`, or the backup file is damaged. |
+| `Restore failed: ...` | The restore did not complete, or left the database without tables. |
+| `An earlier restore did not finish` | A restore stopped part-way and left some tables behind. The database is not trusted. This is recorded in `./data/production/backups/.restore-in-progress`, which is removed once the database is empty again or a restore succeeds. |
+
+**Retry from a clean state:**
+
+```bash
+docker compose down
+docker compose up -d
+```
+
+The database is on tmpfs, so this starts from an empty database and restores the latest backup again. If the latest backup file itself is damaged, move it out of `./data/production/backups/` first so that the next most recent one is used.
+
+If you repaired the database another way (for example with `make restore-backup`) and are sure it is complete, delete `./data/production/backups/.restore-in-progress` so the `backup` container accepts it.
+
+Do not create a backup (`make create-backup`) while the site is empty or only partly restored.
 
 ### Backup service not running hourly
 
@@ -320,10 +352,16 @@ AES-256-CBC with HMAC authentication
 
 ### Smart Restore Logic
 
-1. Check `./data/db_backup/` for latest `.sql.enc` file
-2. If found → decrypt and restore immediately
-3. If not found AND Google Drive enabled → download latest backup
-4. If no backup anywhere → warn user and start fresh
+1. Wait for PostgreSQL (up to 120 seconds). If it never accepts connections → stop with an error
+2. Count the tables in the database. If the count cannot be determined → stop with an error (never assume the database is populated)
+3. If the database already has tables → skip the restore
+4. Otherwise check `./data/production/backups/` for latest `.sql.enc` file
+5. If found → decrypt and restore immediately
+6. If not found AND Google Drive enabled → download latest backup
+7. If no backup anywhere → warn user and start fresh
+8. If the restore fails, or the database still has no tables afterwards → stop with an error
+
+"Stop with an error" means the `backup` container exits without reporting healthy; see [Database restoration fails on startup](#database-restoration-fails-on-startup).
 
 This prioritizes **speed** (local) over **network** (Google Drive).
 
