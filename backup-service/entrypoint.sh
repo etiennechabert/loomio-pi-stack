@@ -44,9 +44,10 @@ echo "Checking if restore is needed..."
 # previous run: it must only exist once THIS run has finished its restore step.
 RESTORE_MARKER="/tmp/.restore-complete"
 # Present from the moment a restore starts writing to the database until it has
-# been verified. Like the marker above it survives a restart of this container,
-# so a half-finished restore is never mistaken for a populated database.
-RESTORE_IN_PROGRESS="/tmp/.restore-in-progress"
+# been verified, so a half-finished restore is never mistaken for a populated
+# database. Kept on the /backups bind mount rather than in /tmp, so it also
+# survives Compose recreating this container while the database keeps running.
+RESTORE_IN_PROGRESS="/backups/.restore-in-progress"
 # Decrypted dump used during the restore (never leave one behind in /backups)
 DECRYPTED="/backups/restore_boot.sql"
 rm -f "$RESTORE_MARKER" "$DECRYPTED"
@@ -56,8 +57,9 @@ DB_WAIT_TIMEOUT=${DB_WAIT_TIMEOUT:-120}
 
 # Run psql against the Loomio database; extra arguments are passed through
 db_psql() {
+    # -X: ignore any psqlrc, so output and session settings are predictable
     PGPASSWORD="${DB_PASSWORD}" PGCONNECT_TIMEOUT=10 \
-        psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" "$@"
+        psql -X -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" "$@"
 }
 
 # Wait until PostgreSQL accepts connections and answers a query.
@@ -89,7 +91,7 @@ wait_for_db() {
 count_public_tables() {
     local count
     count=$(db_psql -t -A -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';") || return 1
-    count=$(printf '%s' "$count" | tr -d '[:space:]')
+    count=${count//[[:space:]]/}
     case "$count" in
         '' | *[!0-9]*) return 1 ;;
     esac
@@ -123,7 +125,7 @@ else
         # Nothing is left of any earlier, unfinished restore
         rm -f "$RESTORE_IN_PROGRESS"
     elif [ -f "$RESTORE_IN_PROGRESS" ]; then
-        echo "✗ ERROR: An earlier restore in this container did not finish, and the database is not empty (${TABLE_COUNT} tables)"
+        echo "✗ ERROR: An earlier restore did not finish, and the database is not empty (${TABLE_COUNT} tables)"
         echo "  The database may be only partly restored - not treating it as populated"
         echo "  To retry from a clean state see docs/RAM_MODE.md (\"Database restoration fails on startup\")"
         exit 1
@@ -165,23 +167,28 @@ EOF
 
     # Restore if we have a backup
     if [ -n "${LATEST_BACKUP}" ]; then
-        echo "Restoring from: $(basename ${LATEST_BACKUP})"
+        echo "Restoring from: $(basename "${LATEST_BACKUP}")"
 
-        # Decrypt
-        if ! python3 -c "
+        # Decrypt. The key is read from the environment (as backup.py does when
+        # encrypting) so it never appears on a command line, and the plaintext
+        # dump is created readable by its owner only.
+        if ! python3 - "$LATEST_BACKUP" "$DECRYPTED" << 'PYEOF'
+import base64, hashlib, os, sys
 from cryptography.fernet import Fernet
-import base64, hashlib
 
 def derive_fernet_key(password):
     return base64.urlsafe_b64encode(hashlib.pbkdf2_hmac('sha256', password.encode(), b'loomio-backup-salt', 100000, dklen=32))
 
-fernet = Fernet(derive_fernet_key('${BACKUP_ENCRYPTION_KEY}'))
-with open('${LATEST_BACKUP}', 'rb') as f:
-    with open('${DECRYPTED}', 'wb') as out:
-        out.write(fernet.decrypt(f.read()))
-"; then
+source, target = sys.argv[1], sys.argv[2]
+fernet = Fernet(derive_fernet_key(os.environ.get('BACKUP_ENCRYPTION_KEY', '')))
+with open(source, 'rb') as f:
+    data = fernet.decrypt(f.read())
+with os.fdopen(os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), 'wb') as out:
+    out.write(data)
+PYEOF
+        then
             rm -f "$DECRYPTED"
-            echo "✗ Restore failed: could not decrypt $(basename ${LATEST_BACKUP}) (wrong BACKUP_ENCRYPTION_KEY or damaged file)"
+            echo "✗ Restore failed: could not decrypt $(basename "${LATEST_BACKUP}") (wrong BACKUP_ENCRYPTION_KEY or damaged file)"
             echo "  Exiting without marking the restore as complete"
             exit 1
         fi

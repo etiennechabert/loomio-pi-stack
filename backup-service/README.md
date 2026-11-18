@@ -127,7 +127,7 @@ The restore step fails closed. The container exits with an error, is restarted b
 - PostgreSQL does not accept connections within the timeout
 - it cannot tell whether the database is empty (the table count query fails or returns no number)
 - the backup cannot be decrypted, the restore fails, or the database still has no tables afterwards
-- an earlier restore in the same container did not finish and the database is not empty
+- an earlier restore did not finish and the database is not empty (recorded in `/backups/.restore-in-progress`, which survives the container being recreated)
 
 It never assumes the database is already populated. Read the reason with `make logs SERVICE=backup`, and see [RAM_MODE.md](../docs/RAM_MODE.md#database-restoration-fails-on-startup) for how to retry.
 

@@ -219,7 +219,7 @@ docker compose logs db
 | `Could not determine whether the database is empty` | The table count query failed. The restore was neither run nor skipped. |
 | `Restore failed: could not decrypt ...` | Wrong `BACKUP_ENCRYPTION_KEY`, or the backup file is damaged. |
 | `Restore failed: ...` | The restore did not complete, or left the database without tables. |
-| `An earlier restore in this container did not finish` | A restore stopped part-way and left some tables behind. The database is not trusted. |
+| `An earlier restore did not finish` | A restore stopped part-way and left some tables behind. The database is not trusted. This is recorded in `./data/production/backups/.restore-in-progress`, which is removed once the database is empty again or a restore succeeds. |
 
 **Retry from a clean state:**
 
@@ -229,6 +229,8 @@ docker compose up -d
 ```
 
 The database is on tmpfs, so this starts from an empty database and restores the latest backup again. If the latest backup file itself is damaged, move it out of `./data/production/backups/` first so that the next most recent one is used.
+
+If you repaired the database another way (for example with `make restore-backup`) and are sure it is complete, delete `./data/production/backups/.restore-in-progress` so the `backup` container accepts it.
 
 Do not create a backup (`make create-backup`) while the site is empty or only partly restored.
 

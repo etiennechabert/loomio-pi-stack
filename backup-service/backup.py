@@ -125,6 +125,7 @@ def count_public_tables():
 
     cmd = [
         'psql',
+        '-X',  # Ignore any psqlrc, so the output is just the query result
         '-h', DB_HOST,
         '-p', DB_PORT,
         '-U', DB_USER,
