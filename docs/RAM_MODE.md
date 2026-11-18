@@ -85,6 +85,16 @@ While it waits, the app logs `wait_for_restore: still waiting ...` once a minute
 - Optional Google Drive sync for disaster recovery
 - Monitor RAM usage with `make ram-usage`
 
+#### Watchdog and the database
+
+`scripts/watchdog/health-monitor.sh` (run every 5 minutes by `loomio-watchdog.timer`) restarts unhealthy containers, but treats `db` differently because restarting it empties the database:
+
+- **db running but unhealthy:** it is **not** restarted, because that would lose everything written since the last backup. The watchdog logs `CRITICAL: db is unhealthy - NOT restarting it automatically`. If it does not recover by itself, restart it by hand once you accept that loss: `docker compose restart db && docker compose restart backup app worker`.
+- **db not running:** its data is already gone, so the watchdog starts it and then restarts `backup` (restores the newest backup), `app` and `worker` (they wait until the restore is done).
+- **db emptied behind everyone's back** (for example Docker restarted it after a crash): when the `backup` container says its restore is done but the restore gate is gone and the Loomio database has no tables, the watchdog restarts `backup`, `app` and `worker` the same way.
+
+The watchdog logs to `./logs/loomio-watchdog.log` and the journal (`journalctl -u loomio-watchdog`).
+
 ### Shutdown
 
 - `make stop` automatically creates backup before stopping
@@ -233,7 +243,7 @@ docker compose logs db
 | `An earlier restore did not finish` | A restore stopped part-way and left some tables behind. The database is not trusted. This is recorded in `./data/production/backups/.restore-in-progress`, which is removed once the database is empty again or a restore succeeds. |
 | `Could not close the restore gate` / `Could not open the restore gate` | The `backup` container could not write to the `postgres` database. The app and worker keep waiting. |
 
-**The app or worker keeps logging `wait_for_restore: still waiting`:** the restore gate is not open. Either the `backup` container is failing (see above), or the `db` container was restarted on its own after the `backup` container had finished. That empties the database and closes the gate, and nothing restores it. Run `docker compose restart backup` to restore again.
+**The app or worker keeps logging `wait_for_restore: still waiting`:** the restore gate is not open. Either the `backup` container is failing (see above), or the `db` container was restarted on its own after the `backup` container had finished. That empties the database and closes the gate. If the watchdog timer is installed (`loomio-watchdog.timer`), it notices within 5 minutes and restores the database (see [Watchdog and the database](#watchdog-and-the-database)). Otherwise run `docker compose restart backup app worker`.
 
 **Retry from a clean state:**
 
