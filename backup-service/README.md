@@ -80,7 +80,7 @@ Scheduled Time
      ↓
 Run backup script (hourly/daily/weekly)
      ↓
-Refuse to continue if the database has no tables (backup.py)
+Refuse to continue if the database has no tables or no users (backup.py)
      ↓
 Create database dump (backup.py)
      ↓
@@ -172,8 +172,12 @@ docker exec loomio-backup crontab -l
 make logs SERVICE=backup
 ```
 
-### Backup refuses to run ("Database has no tables")
-`backup.py` exits with an error instead of writing a dump when the `public` schema has no tables. A dump of an empty database would become the newest backup and be restored on the next start. Find out why the database is empty (`make logs SERVICE=backup`, `make logs SERVICE=db`) before creating any backup. Dumps smaller than 1 MB are discarded for the same reason.
+### Backup refuses to run ("Database has no tables" / "Database has tables but no users")
+`backup.py` exits with an error instead of writing a dump when the `public` schema has no tables, or when it has tables but the `users` table has no users other than bots. The second case is what the app leaves behind when it creates an empty schema after a restore was skipped. A dump of an empty database would become the newest backup and be restored on the next start. Find out why the database is empty (`make logs SERVICE=backup`, `make logs SERVICE=db`) before creating any backup. Dumps smaller than 1 MB are discarded for the same reason.
+
+On a fresh install, backups are refused until the first user (usually the admin, `make create-admin`) exists.
+
+If either count cannot be read (for example the query fails), `backup.py` logs a warning and backs up anyway, so a problem in these checks cannot stop backups on its own.
 
 ### Google Drive sync failing
 ```bash
