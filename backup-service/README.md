@@ -121,13 +121,15 @@ Every time the container starts, `entrypoint.sh`:
 1. Waits up to 120 seconds for PostgreSQL to accept connections
 2. Restores the latest database backup if the database is empty (no tables in the `public` schema)
 3. Syncs uploads from Google Drive
-4. Marks restore complete by creating `/tmp/.restore-complete` (the container healthcheck, which the app waits for on `docker compose up`)
+4. Opens the restore gate: one row in the table `loomio_restore_gate` in PostgreSQL's own `postgres` database (the gate is closed at the start of every run). The `app` and `worker` containers wait for it in `scripts/wait-for-restore.sh` before starting Loomio, also when Docker starts every container at once and `depends_on` is not applied. See [RAM_MODE.md](../docs/RAM_MODE.md#the-restore-gate)
+5. Marks restore complete by creating `/tmp/.restore-complete` (the container healthcheck, which the app waits for on `docker compose up`)
 
 The restore step fails closed. The container exits with an error, is restarted by Docker to try again, and is **not** reported healthy when:
 - PostgreSQL does not accept connections within the timeout
 - it cannot tell whether the database is empty (the table count query fails or returns no number)
 - the backup cannot be decrypted, the restore fails, or the database still has no tables afterwards
 - an earlier restore did not finish and the database is not empty (recorded in `/backups/.restore-in-progress`, which survives the container being recreated)
+- it cannot close or open the restore gate
 
 It never assumes the database is already populated. Read the reason with `make logs SERVICE=backup`, and see [RAM_MODE.md](../docs/RAM_MODE.md#database-restoration-fails-on-startup) for how to retry.
 
