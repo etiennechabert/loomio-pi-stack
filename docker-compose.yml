@@ -39,6 +39,11 @@ services:
     image: wizmoisa/loomio:master
     container_name: loomio-app
     restart: unless-stopped
+    # Wait until the backup container has restored the database (or skipped the
+    # restore), then run the image's own start script (`rake db:prepare` + puma).
+    # depends_on below only applies to `docker compose up`; this also covers
+    # Docker restarting every container at once. See scripts/wait-for-restore.sh.
+    command: ["bash", "/scripts/wait-for-restore.sh", "/loomio/docker_start.sh"]
     depends_on:
       db:
         condition: service_healthy
@@ -93,7 +98,8 @@ services:
       RAILS_ENV: ${RAILS_ENV:-production}
       RACK_ENV: ${RACK_ENV:-production}
       TASK: worker
-    command: bundle exec sidekiq
+    # Same wait as the app (see there), then Sidekiq
+    command: ["bash", "/scripts/wait-for-restore.sh", "bundle", "exec", "sidekiq"]
     volumes:
       - ./data/production/uploads/system:/loomio/public/system
       - ./data/production/uploads/storage:/loomio/storage
@@ -103,6 +109,7 @@ services:
       - app-import:/import
       - app-tmp:/loomio/tmp
       - app-logs:/loomio/log
+      - ./scripts:/scripts:ro
     networks:
       - loomio-network
 

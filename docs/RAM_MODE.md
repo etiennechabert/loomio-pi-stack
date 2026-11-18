@@ -61,11 +61,22 @@ Development (`RAILS_ENV=development`) uses normal disk-based storage.
 3. If the database is empty, it looks for the latest backup in `./data/production/backups/` (local first!)
 4. If no local backup found, downloads from Google Drive (if configured)
 5. Decrypts and restores database to RAM
-6. The `backup` container reports healthy, and `docker compose up` starts Loomio with fully restored data
+6. The `backup` container opens the **restore gate** and reports healthy
+7. The `app` and `worker` containers, which were waiting for the gate, start Loomio with fully restored data
 
 The restore fails closed. If PostgreSQL never becomes ready, if the `backup` container cannot tell whether the database is empty, or if the restore itself fails, the container exits with an error and is not reported healthy. It never assumes the database is already populated. See [Database restoration fails on startup](#database-restoration-fails-on-startup).
 
-**Limitation:** the app only waits for the `backup` container when the stack is started with `docker compose up` (which is what `loomio.service` and `make start` do). When Docker itself restarts the containers (Docker daemon restart, power loss), they all start at once and the app does not wait for the restore.
+#### The restore gate
+
+The app runs `rake db:prepare` when it starts. On an empty database that creates an empty Loomio schema, after which the `backup` container would see tables and skip the restore. So the app must not start before the restore step is done.
+
+`depends_on` in `docker-compose.yml` only does this for `docker compose up`. When Docker itself starts every container at once (Docker daemon restart, power loss), or on any other start that does not go through `docker compose up`, it is not applied. Instead, the `app` and `worker` containers start through `scripts/wait-for-restore.sh`, which waits until the `backup` container has finished its restore step:
+
+- At the start of each run, `backup-service/entrypoint.sh` closes the gate. When the restore step is done (restored, skipped because the database already had tables, or no backup available) it opens it again by writing one row into the table `loomio_restore_gate` in PostgreSQL's own `postgres` database.
+- The gate is in the `postgres` database so that it disappears together with the data (tmpfs) and is never part of a backup (`pg_dump` only dumps the Loomio database). For the same reason `POSTGRES_DB` must not be `postgres`.
+- The wait never times out. If the restore fails, Loomio stays down instead of starting on an empty database.
+
+While it waits, the app logs `wait_for_restore: still waiting ...` once a minute (`docker compose logs app`).
 
 ### Runtime
 
@@ -220,6 +231,9 @@ docker compose logs db
 | `Restore failed: could not decrypt ...` | Wrong `BACKUP_ENCRYPTION_KEY`, or the backup file is damaged. |
 | `Restore failed: ...` | The restore did not complete, or left the database without tables. |
 | `An earlier restore did not finish` | A restore stopped part-way and left some tables behind. The database is not trusted. This is recorded in `./data/production/backups/.restore-in-progress`, which is removed once the database is empty again or a restore succeeds. |
+| `Could not close the restore gate` / `Could not open the restore gate` | The `backup` container could not write to the `postgres` database. The app and worker keep waiting. |
+
+**The app or worker keeps logging `wait_for_restore: still waiting`:** the restore gate is not open. Either the `backup` container is failing (see above), or the `db` container was restarted on its own after the `backup` container had finished. That empties the database and closes the gate, and nothing restores it. Run `docker compose restart backup` to restore again.
 
 **Retry from a clean state:**
 

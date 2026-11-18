@@ -55,11 +55,55 @@ rm -f "$RESTORE_MARKER" "$DECRYPTED"
 # How long to wait for PostgreSQL before giving up (seconds)
 DB_WAIT_TIMEOUT=${DB_WAIT_TIMEOUT:-120}
 
+# Restore gate. The app and worker containers do not start Loomio until this
+# table holds a row (scripts/wait-for-restore.sh): without it, an app started at
+# the same time as this container (Docker daemon restart, power loss) runs
+# `rake db:prepare` on the empty database, creates an empty schema, and this
+# script then sees tables and skips the restore.
+# It lives in PostgreSQL's own `postgres` database, not in the Loomio database:
+#  - it disappears with the data: the database is on tmpfs, so every start of
+#    the db container begins with the gate closed;
+#  - it is never in a backup (pg_dump only dumps the Loomio database), so
+#    restoring a backup cannot open it half-way through the restore.
+# Keep these names in sync with scripts/ruby/wait_for_restore.rb.
+RESTORE_GATE_DB="postgres"
+RESTORE_GATE_TABLE="loomio_restore_gate"
+
+if [ "$DB_NAME" = "$RESTORE_GATE_DB" ]; then
+    echo "ERROR: DB_NAME (POSTGRES_DB) must not be '${RESTORE_GATE_DB}': that database holds the restore gate, which must never end up in a backup"
+    exit 1
+fi
+
 # Run psql against the Loomio database; extra arguments are passed through
 db_psql() {
     # -X: ignore any psqlrc, so output and session settings are predictable
     PGPASSWORD="${DB_PASSWORD}" PGCONNECT_TIMEOUT=10 \
         psql -X -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" "$@"
+}
+
+# Run psql against the database that holds the restore gate; stop at the first error
+gate_psql() {
+    PGPASSWORD="${DB_PASSWORD}" PGCONNECT_TIMEOUT=10 PGOPTIONS="-c client_min_messages=warning" \
+        psql -X -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${RESTORE_GATE_DB}" \
+        -v ON_ERROR_STOP=1 -q "$@"
+}
+
+# Close the gate: the app and worker wait until this run has finished its restore step
+close_restore_gate() {
+    gate_psql -c "DROP TABLE IF EXISTS ${RESTORE_GATE_TABLE};" > /dev/null
+}
+
+# Open the gate, recording what the restore step did ($1). One transaction, so the
+# app never sees the table without its row.
+open_restore_gate() {
+    gate_psql --single-transaction -v outcome="$1" > /dev/null <<SQL
+DROP TABLE IF EXISTS ${RESTORE_GATE_TABLE};
+CREATE TABLE ${RESTORE_GATE_TABLE} (
+    outcome     text        NOT NULL,
+    finished_at timestamptz NOT NULL DEFAULT now()
+);
+INSERT INTO ${RESTORE_GATE_TABLE} (outcome) VALUES (:'outcome');
+SQL
 }
 
 # Wait until PostgreSQL accepts connections and answers a query.
@@ -103,6 +147,17 @@ if ! wait_for_db; then
     exit 1
 fi
 
+# A gate left open by an earlier run would let the app start before this run has
+# looked at the database
+if ! close_restore_gate; then
+    echo "✗ ERROR: Could not close the restore gate (table ${RESTORE_GATE_TABLE} in the '${RESTORE_GATE_DB}' database)"
+    echo "  Exiting without marking the restore as complete"
+    exit 1
+fi
+
+# What the restore step did; recorded in the gate when it is opened
+RESTORE_OUTCOME="restore step finished"
+
 # In RAM mode, ALWAYS restore because tmpfs is wiped on boot
 # In disk mode, only restore if database is empty
 SHOULD_RESTORE=false
@@ -131,6 +186,7 @@ else
         exit 1
     else
         echo "Database already populated (${TABLE_COUNT} tables) - skipping restore"
+        RESTORE_OUTCOME="database already populated (${TABLE_COUNT} tables), restore skipped"
     fi
 fi
 
@@ -215,8 +271,10 @@ PYEOF
 
         rm -f "$RESTORE_IN_PROGRESS"
         echo "✓ Database restored successfully! (${RESTORED_TABLES} tables)"
+        RESTORE_OUTCOME="restored from $(basename "${LATEST_BACKUP}") (${RESTORED_TABLES} tables)"
     else
         echo "No backup available - database will remain empty"
+        RESTORE_OUTCOME="no backup available, database left empty"
     fi
 fi
 
@@ -278,6 +336,14 @@ EOF
     rm -rf "$RCLONE_CONFIG_DIR"
     echo "✓ Uploads synced from Google Drive"
 fi
+
+# Let the app and worker start Loomio (scripts/wait-for-restore.sh)
+if ! open_restore_gate "$RESTORE_OUTCOME"; then
+    echo "✗ ERROR: Could not open the restore gate (table ${RESTORE_GATE_TABLE} in the '${RESTORE_GATE_DB}' database)"
+    echo "  The app and worker keep waiting - exiting without marking the restore as complete"
+    exit 1
+fi
+echo "✓ Restore gate open (${RESTORE_OUTCOME}) - the app and worker may start"
 
 # Mark restore as complete (for healthcheck)
 touch "$RESTORE_MARKER"
