@@ -239,6 +239,7 @@ docker compose logs db
 | `Database did not accept connections within 120s` | PostgreSQL did not start in time. Check `docker compose logs db`. |
 | `Could not determine whether the database is empty` | The table count query failed. The restore was neither run nor skipped. |
 | `Restore failed: could not decrypt ...` | Wrong `BACKUP_ENCRYPTION_KEY`, or the backup file is damaged. |
+| `Restore failed: psql stopped at an error` | A statement in the backup failed. The restore runs in one transaction, so it was rolled back and the database is empty again; the first errors are printed on the lines starting with `psql:`. |
 | `Restore failed: ...` | The restore did not complete, or left the database without tables. |
 | `An earlier restore did not finish` | A restore stopped part-way and left some tables behind. The database is not trusted. This is recorded in `./data/production/backups/.restore-in-progress`, which is removed once the database is empty again or a restore succeeds. |
 | `Could not close the restore gate` / `Could not open the restore gate` | The `backup` container could not write to the `postgres` database. The app and worker keep waiting. |

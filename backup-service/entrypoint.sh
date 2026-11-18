@@ -249,13 +249,23 @@ PYEOF
             exit 1
         fi
 
-        # Restore
-        # psql exits 0 even when individual statements fail, so a zero exit code
-        # is not enough: also check that the database has tables afterwards.
+        # Restore in one transaction that stops at the first SQL error, so a
+        # restore is either complete or leaves the database empty. psql's own
+        # messages go to RESTORE_LOG, and its first errors are shown if it fails.
+        #
+        # pg_dump 17 (the client in this image) writes "SET transaction_timeout = 0;",
+        # which PostgreSQL 15 rejects. That line only resets a session timeout
+        # and does not affect the data, so it is the one line removed before the
+        # restore. pipefail: if reading the dump fails part-way, psql would
+        # otherwise commit what it received so far.
         touch "$RESTORE_IN_PROGRESS"
         RESTORE_ERROR=""
-        if ! db_psql < "$DECRYPTED" > /dev/null 2>&1; then
-            RESTORE_ERROR="psql reported an error (database unreachable, or connection lost during the restore)"
+        RESTORE_LOG="/tmp/restore-psql.log"
+        if ! ( set -o pipefail
+               sed '/^SET transaction_timeout = 0;$/d' "$DECRYPTED" \
+                   | db_psql -v ON_ERROR_STOP=1 --single-transaction > /dev/null 2> "$RESTORE_LOG" ); then
+            RESTORE_ERROR="psql stopped at an error; the restore was rolled back, so nothing was restored"
+            grep -m 5 -E "ERROR|FATAL|error:" "$RESTORE_LOG" | cut -c1-300 | sed 's/^/  psql: /' || true
         elif ! RESTORED_TABLES=$(count_public_tables); then
             RESTORE_ERROR="could not check the database after the restore"
         elif [ "$RESTORED_TABLES" -eq 0 ]; then
