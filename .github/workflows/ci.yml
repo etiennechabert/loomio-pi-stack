@@ -36,6 +36,9 @@ jobs:
     - name: Validate docker-compose.yml
       run: docker compose config > /dev/null
 
+    - name: Validate docker-compose.disk.yml (database on disk)
+      run: docker compose -f docker-compose.yml -f docker-compose.disk.yml config > /dev/null
+
     - name: Check for required files
       run: |
         echo "Checking required files..."

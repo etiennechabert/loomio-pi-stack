@@ -4,7 +4,7 @@
 #
 # Usage (from docker-compose.yml): bash /scripts/wait-for-restore.sh COMMAND [ARGS...]
 #
-# Why: PostgreSQL keeps its data on tmpfs, so the database is empty every time
+# Why: by default PostgreSQL keeps its data on tmpfs, so the database is empty every time
 # the db container starts, and backup-service/entrypoint.sh restores the newest
 # backup into it. `depends_on: backup: service_healthy` is only applied by
 # `docker compose up`. When Docker starts every container at once (Docker daemon

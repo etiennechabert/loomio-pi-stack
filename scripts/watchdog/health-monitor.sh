@@ -42,7 +42,7 @@ restart_service() {
     sleep 10
 }
 
-# The database needs special care: PostgreSQL keeps its data on tmpfs
+# The database needs special care: by default PostgreSQL keeps its data on tmpfs
 # (docker-compose.yml), so a db container that stopped or was restarted - by
 # this script, or by Docker itself after a crash - comes back EMPTY. Only the
 # backup container restores it, and only when it starts.
@@ -86,13 +86,14 @@ database_emptied_after_restore() {
 # everything written since the last backup.
 check_db() {
     if ! is_running db; then
-        # Its tmpfs is already gone: starting it loses nothing more
+        # In RAM mode its tmpfs is already gone, and with the database on disk
+        # the data is still there: either way, starting it loses nothing more
         log "ERROR: db is not running"
         restart_service db
         restore_database "db was not running and starts with an EMPTY database"
         DB_RESTORE_STARTED=true
     elif ! is_healthy db; then
-        log "CRITICAL: db is unhealthy - NOT restarting it automatically: its data is in RAM (tmpfs), so a restart empties the database and loses everything since the last backup"
+        log "CRITICAL: db is unhealthy - NOT restarting it automatically: in RAM mode (the default) a restart empties the database and loses everything since the last backup"
         log "CRITICAL: if it does not recover by itself, restart it by hand once you accept that loss: docker compose restart db && docker compose restart backup app worker"
     else
         log "OK: db is healthy"
