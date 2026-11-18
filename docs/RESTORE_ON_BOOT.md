@@ -2,6 +2,8 @@
 
 Configure your Loomio Pi to automatically restore from the latest backup on every boot, enabling true stateless operation.
 
+> **Note:** the Docker Compose stack already restores the database by itself. Each time the `backup` container starts, it waits for PostgreSQL, restores the latest backup if the database is empty, and refuses to report healthy if it cannot tell whether the database is empty or if the restore fails. See [RAM_MODE.md](RAM_MODE.md#startup-process). The `loomio-restore.service` / `scripts/restore-on-boot.sh` setup described below is a separate, host-side mechanism.
+
 ## Table of Contents
 - [Why Stateless Operation?](#why-stateless-operation)
 - [How It Works](#how-it-works)
