@@ -61,8 +61,11 @@ DB_WAIT_TIMEOUT=${DB_WAIT_TIMEOUT:-120}
 # `rake db:prepare` on the empty database, creates an empty schema, and this
 # script then sees tables and skips the restore.
 # It lives in PostgreSQL's own `postgres` database, not in the Loomio database:
-#  - it disappears with the data: the database is on tmpfs, so every start of
-#    the db container begins with the gate closed;
+#  - it disappears with the data: with the database on tmpfs (the default),
+#    every start of the db container begins with the gate closed. With the
+#    database on disk (docker-compose.disk.yml) the gate survives a restart
+#    together with the data, so an app that starts before this script has run
+#    finds a populated database, not an empty one;
 #  - it is never in a backup (pg_dump only dumps the Loomio database), so
 #    restoring a backup cannot open it half-way through the restore.
 # Keep these names in sync with scripts/ruby/wait_for_restore.rb.

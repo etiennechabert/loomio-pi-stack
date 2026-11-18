@@ -23,6 +23,28 @@ Development (`RAILS_ENV=development`) uses normal disk-based storage.
 - Requires sufficient RAM (8GB minimum, 16GB recommended)
 - Slightly higher risk of data loss between backups
 
+## Database on disk (optional, for an SSD)
+
+On a host with an SSD, the database can live on disk instead, so a reboot or power cut loses nothing written since the last backup. Add this line to `.env`:
+
+```bash
+COMPOSE_FILE=docker-compose.yml:docker-compose.disk.yml
+```
+
+Docker Compose reads `COMPOSE_FILE` from `.env`, so `docker compose`, `make` and `loomio.service` all use it. `docker-compose.disk.yml` replaces the database's tmpfs mount with `./data/production/postgres`. Redis stays in RAM, and hourly backups and the Google Drive sync are unchanged.
+
+**Switching an existing stack** (the database is restored from a fresh backup, so stop writes first):
+
+```bash
+docker compose stop app worker            # site goes down; nothing more is written
+make create-backup                        # newest backup = current data
+# add the COMPOSE_FILE line to .env
+docker compose stop backup db
+docker compose up -d                      # db is recreated on disk (empty), backup restores into it, app and worker wait for the restore gate
+```
+
+From then on the `backup` container finds the database populated at each start and skips the restore. If `./data/production/postgres` is ever emptied, the next start restores the newest backup again. To go back to RAM mode, remove the line and repeat the same steps.
+
 ## Requirements
 
 - **RAM**: 8GB minimum, 16GB recommended
@@ -73,7 +95,7 @@ The app runs `rake db:prepare` when it starts. On an empty database that creates
 `depends_on` in `docker-compose.yml` only does this for `docker compose up`. When Docker itself starts every container at once (Docker daemon restart, power loss), or on any other start that does not go through `docker compose up`, it is not applied. Instead, the `app` and `worker` containers start through `scripts/wait-for-restore.sh`, which waits until the `backup` container has finished its restore step:
 
 - At the start of each run, `backup-service/entrypoint.sh` closes the gate. When the restore step is done (restored, skipped because the database already had tables, or no backup available) it opens it again by writing one row into the table `loomio_restore_gate` in PostgreSQL's own `postgres` database.
-- The gate is in the `postgres` database so that it disappears together with the data (tmpfs) and is never part of a backup (`pg_dump` only dumps the Loomio database). For the same reason `POSTGRES_DB` must not be `postgres`.
+- The gate is in the `postgres` database so that it disappears together with the data (tmpfs) and is never part of a backup (`pg_dump` only dumps the Loomio database). For the same reason `POSTGRES_DB` must not be `postgres`. With the [database on disk](#database-on-disk-optional-for-an-ssd) the gate survives restarts together with the data, which is harmless: the database it guards is then not empty either.
 - The wait never times out. If the restore fails, Loomio stays down instead of starting on an empty database.
 
 While it waits, the app logs `wait_for_restore: still waiting ...` once a minute (`docker compose logs app`).

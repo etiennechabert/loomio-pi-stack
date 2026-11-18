@@ -36,6 +36,7 @@ Loomio is an open-source collaborative decision-making platform that helps group
 - Low resource footprint
 - Systemd integration for auto-start
 - RAM-only operation for read-only filesystems
+- Optional database on disk for hosts with an SSD (`docker-compose.disk.yml`)
 
 ## Quick Start
 
@@ -120,7 +121,7 @@ graph TB
 
 ### Advanced
 - **[docs/INVITE_ONLY_SETUP.md](docs/INVITE_ONLY_SETUP.md)** - Private, invite-only configuration
-- **[docs/RAM_MODE.md](docs/RAM_MODE.md)** - RAM-only operation details
+- **[docs/RAM_MODE.md](docs/RAM_MODE.md)** - RAM-only operation details, and keeping the database on disk instead
 - **[docs/RESTORE_ON_BOOT.md](docs/RESTORE_ON_BOOT.md)** - Stateless Pi setup
 
 ### Testing & Staging

@@ -1,0 +1,23 @@
+# Optional: keep the PostgreSQL database on disk instead of in RAM.
+#
+# By default (docker-compose.yml) the database lives on tmpfs, which spares an
+# SD card but empties the database on every restart of the db container; the
+# backup container then restores the newest backup. On a host with an SSD,
+# storing the database on disk keeps everything written since the last backup
+# across reboots and power cuts.
+#
+# Enable it by adding this line to .env (Docker Compose reads COMPOSE_FILE
+# from .env, so `docker compose`, `make` and loomio.service all pick it up):
+#
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.disk.yml
+#
+# The data then lives in ./data/production/postgres. On the first start that
+# directory is empty, so the backup container restores the newest backup into
+# it, exactly as it does in RAM mode; after that it finds the database
+# populated and skips the restore. See docs/RAM_MODE.md ("Database on disk").
+# Redis stays in RAM.
+services:
+  db:
+    tmpfs: !reset []
+    volumes:
+      - ./data/production/postgres:/var/lib/postgresql/data
