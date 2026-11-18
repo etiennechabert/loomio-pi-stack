@@ -24,10 +24,14 @@ is_running() {
     docker compose ps -q "$1" 2>/dev/null | grep -q .
 }
 
-# Check if a container is healthy
+# Check if a container is healthy. A container without a healthcheck (the
+# worker) counts as healthy as long as it runs. Asking for .State.Health.Status
+# directly would make docker inspect print an empty line and fail for such a
+# container, and the captured "\nnone" would never equal "none", so the worker
+# was treated as unhealthy and restarted on every run.
 is_healthy() {
     local health
-    health=$(docker inspect --format='{{.State.Health.Status}}' "loomio-$1" 2>/dev/null || echo "none")
+    health=$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "loomio-$1" 2>/dev/null) || health="unknown"
     [ "$health" = "healthy" ] || [ "$health" = "none" ]
 }
 
